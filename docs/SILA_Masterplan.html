@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SILA — Masterplan v1.0.0</title>
+<meta name="description" content="SILA Masterplan — Pipeline IA self-hosted de traduction et doublage vidéo multilingue. 18 sections, 14 principes, 10 briques IA, V1→V3.">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+/* ═══ THEME SYSTEM ═══ */
+:root,[data-theme="dark"]{
+  --bg:#07070E;--bg-card:#0F0F1A;--bg-code:#0A0A14;--bg-nav:#0A0A14;
+  --bg-hdr:linear-gradient(135deg,#0D0A1A 0%,#1A0F0F 50%,#0A1628 100%);
+  --border:#1E1E2E;--border-light:#151522;
+  --text:#C8C8D4;--text-strong:#E0E0E8;--text-muted:#666;--text-code:#A0A0C0;
+  --link:#818CF8;--accent:#8B5CF6;--scrollbar:#2A2A3A;--hover-row:#12121F;
+  --badge-green-bg:#10B98118;--badge-green-c:#10B981;--badge-green-b:#10B98133;
+  --badge-amber-bg:#F59E0B18;--badge-amber-c:#F59E0B;--badge-amber-b:#F59E0B33;
+  --badge-red-bg:#EF444418;--badge-red-c:#EF4444;--badge-red-b:#EF444433;
+  --badge-blue-bg:#3B82F618;--badge-blue-c:#3B82F6;--badge-blue-b:#3B82F633;
+  --badge-purple-bg:#8B5CF618;--badge-purple-c:#8B5CF6;--badge-purple-b:#8B5CF633;
+  --progress-bg:#1A1A2E;--progress-track:#0A0A14;
+  --timeline-line:#1E1E2E;
+}
+[data-theme="light"]{
+  --bg:#F5F5F0;--bg-card:#FFFFFF;--bg-code:#F0EDE8;--bg-nav:#FFFFFF;
+  --bg-hdr:linear-gradient(135deg,#F8F0F0 0%,#FFF8F0 50%,#F0F0F8 100%);
+  --border:#D8D8D0;--border-light:#E8E8E2;
+  --text:#3A3A40;--text-strong:#1A1A20;--text-muted:#888;--text-code:#5A4A6A;
+  --link:#6B4CE6;--accent:#7B4CF6;--scrollbar:#C0C0B8;--hover-row:#F8F8F2;
+  --badge-green-bg:#E8FDE8;--badge-green-c:#1A8A4A;--badge-green-b:#A0E0A0;
+  --badge-amber-bg:#FDF4E0;--badge-amber-c:#9A6A00;--badge-amber-b:#E0C060;
+  --badge-red-bg:#FDE8E8;--badge-red-c:#D03030;--badge-red-b:#F0A0A0;
+  --badge-blue-bg:#E8F0FD;--badge-blue-c:#2563EB;--badge-blue-b:#93B5F0;
+  --badge-purple-bg:#F0E8FD;--badge-purple-c:#6B3CC6;--badge-purple-b:#C0A0F0;
+  --progress-bg:#E2E8F0;--progress-track:#CBD5E0;
+  --timeline-line:#D0D0D0;
+}
+
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.7;font-size:15px;transition:background .3s,color .3s}
+::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:3px}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+
+/* THEME TOGGLE */
+.theme-toggle{position:fixed;top:12px;right:16px;z-index:200;width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:var(--bg-card);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;transition:all .3s}
+.theme-toggle:hover{border-color:var(--accent);transform:scale(1.1)}
+
+/* HEADER */
+.hdr{background:var(--bg-hdr);padding:40px 24px 32px;position:relative;overflow:hidden;text-align:center;transition:background .3s}
+.hdr::before{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#EF4444,#F59E0B,#10B981,#3B82F6,#8B5CF6,#EC4899,#EF4444)}
+.hdr h1{font-family:'Fira Code',monospace;font-size:2.2rem;font-weight:700;color:var(--text-strong);letter-spacing:4px;margin-bottom:4px}
+.hdr .h1sub{font-family:'Fira Code',monospace;font-size:11px;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px}
+.hdr .subtitle{font-family:'DM Sans',sans-serif;font-size:1.05rem;color:#9CA3AF;margin-bottom:16px}
+.hdr-badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+.badge{display:inline-block;font-size:9px;font-weight:700;padding:3px 10px;border-radius:4px;font-family:'Fira Code',monospace;letter-spacing:.4px;text-transform:uppercase}
+.badge-green{background:var(--badge-green-bg);color:var(--badge-green-c);border:1px solid var(--badge-green-b)}
+.badge-amber{background:var(--badge-amber-bg);color:var(--badge-amber-c);border:1px solid var(--badge-amber-b)}
+.badge-red{background:var(--badge-red-bg);color:var(--badge-red-c);border:1px solid var(--badge-red-b)}
+.badge-blue{background:var(--badge-blue-bg);color:var(--badge-blue-c);border:1px solid var(--badge-blue-b)}
+.badge-purple{background:var(--badge-purple-bg);color:var(--badge-purple-c);border:1px solid var(--badge-purple-b)}
+.badge-pill{border-radius:20px;padding:4px 14px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.badge-pulse{animation:pulse 2s ease-in-out infinite}
+.hdr-meta{font-family:'Fira Code',monospace;font-size:.7rem;color:#6B7280;display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+
+/* NAV */
+.nav{background:var(--bg-nav);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;overflow-x:auto;white-space:nowrap;-webkit-overflow-scrolling:touch;transition:background .3s}
+.nav-inner{max-width:1060px;margin:0 auto;display:flex;gap:3px;padding:8px 16px}
+.nav-btn{background:transparent;color:var(--text-muted);border:1px solid transparent;padding:6px 11px;font-size:10px;font-weight:600;cursor:pointer;font-family:'Fira Code',monospace;transition:all .2s;flex-shrink:0;border-radius:6px;text-decoration:none;display:inline-block}
+.nav-btn:hover{color:var(--text);background:var(--hover-row);border-color:var(--border);text-decoration:none}
+.nav-btn.active{color:#fff;background:var(--accent);border-color:var(--accent)}
+
+/* MAIN */
+.container{max-width:1060px;margin:0 auto;padding:32px 24px 80px}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:32px;margin-bottom:24px;transition:background .3s,border-color .3s}
+.section-title{font-family:'Fira Code',monospace;font-size:15px;font-weight:700;color:var(--text-strong);margin-bottom:20px;padding-left:14px;border-left:3px solid var(--accent);line-height:1.4}
+h3{font-family:'Fira Code',monospace;font-size:13px;font-weight:700;color:var(--text-strong);margin:20px 0 10px;letter-spacing:-.2px}
+h4{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text-strong);margin:16px 0 8px}
+p{margin:8px 0;font-size:14px;color:var(--text);line-height:1.8}
+ul,ol{margin:8px 0 8px 24px;font-size:14px}
+li{margin:4px 0}
+strong{color:var(--text-strong)}
+hr{border:none;border-top:1px solid var(--border);margin:24px 0}
+code{font-family:'Fira Code',monospace;font-size:.8em;background:var(--bg-code);padding:2px 6px;border-radius:4px;color:var(--text-code)}
+
+/* TABLES */
+.table-wrap{overflow-x:auto;margin:12px 0}
+table.gtm-table{width:100%;border-collapse:collapse;font-size:12px;margin:14px 0}
+table.gtm-table th{font-family:'Fira Code',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.7px;color:var(--text-muted);text-align:left;padding:10px 8px;border-bottom:2px solid var(--border);position:sticky;top:48px;background:var(--bg-card);z-index:1}
+table.gtm-table td{font-family:'Fira Code',monospace;font-size:11px;padding:9px 8px;border-bottom:1px solid var(--border-light);color:var(--text);vertical-align:top}
+table.gtm-table tr:hover td{background:var(--hover-row)}
+table.gtm-table tr:last-child td{border-bottom:none}
+
+/* CODE / DIAGRAM */
+pre.diagram{background:var(--bg-code);font-family:'Fira Code',monospace;font-size:.625rem;padding:20px;border-radius:8px;overflow-x:auto;line-height:1.6;color:var(--text);margin:12px 0;border:1px solid var(--border);transition:background .3s}
+pre.diagram code{background:none;padding:0;font-size:inherit}
+
+/* PIPELINE STEPS */
+.pipeline-steps{display:flex;flex-direction:column;gap:0;margin:16px 0}
+.pipeline-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-light)}
+.pipeline-step:last-child{border-bottom:none}
+.step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;font-family:'Fira Code',monospace;flex-shrink:0;color:#fff}
+.step-body{flex:1}
+.step-title{font-weight:700;font-size:13px;color:var(--text-strong);margin-bottom:2px}
+.step-detail{font-size:12px;color:var(--text-muted);line-height:1.6}
+
+/* PROGRESS BAR */
+.progress-row{display:flex;align-items:center;gap:12px;margin:8px 0;font-size:12px;font-family:'Fira Code',monospace}
+.progress-label{min-width:200px;color:var(--text)}
+.progress-bar{flex:1;height:8px;background:var(--progress-bg);border-radius:4px;overflow:hidden;position:relative}
+.progress-fill{height:100%;border-radius:4px;transition:width .5s}
+.progress-value{min-width:50px;text-align:right;color:var(--text-muted);font-size:11px}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:40px;margin:24px 0}
+.timeline::before{content:'';position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--timeline-line)}
+.timeline-row{position:relative;margin-bottom:24px}
+.timeline-node{position:absolute;left:-40px;top:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'Fira Code',monospace;color:#fff;z-index:1}
+.timeline-content{padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
+.timeline-title{font-family:'Fira Code',monospace;font-size:13px;font-weight:700;color:var(--text-strong);margin-bottom:6px}
+.timeline-detail{font-size:12px;color:var(--text);line-height:1.7}
+
+/* SEVERITY BADGES INLINE */
+.sev{display:inline-block;font-family:'Fira Code',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;vertical-align:middle}
+.sev-high{background:var(--badge-red-bg);color:var(--badge-red-c);border:1px solid var(--badge-red-b)}
+.sev-med{background:var(--badge-amber-bg);color:var(--badge-amber-c);border:1px solid var(--badge-amber-b)}
+.sev-low{background:var(--badge-green-bg);color:var(--badge-green-c);border:1px solid var(--badge-green-b)}
+.sev-certain{background:var(--badge-purple-bg);color:var(--badge-purple-c);border:1px solid var(--badge-purple-b)}
+
+/* STATUS BADGES */
+.status{display:inline-block;font-family:'Fira Code',monospace;font-size:9px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.3px;vertical-align:middle;margin-left:6px}
+.status-locked{background:var(--badge-green-bg);color:var(--badge-green-c);border:1px solid var(--badge-green-b)}
+.status-eval{background:var(--badge-blue-bg);color:var(--badge-blue-c);border:1px solid var(--badge-blue-b)}
+.status-warn{background:var(--badge-amber-bg);color:var(--badge-amber-c);border:1px solid var(--badge-amber-b)}
+
+/* ACCORDION */
+.accordion{margin:12px 0}
+.accordion-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 16px;background:var(--bg-code);border:1px solid var(--border);border-radius:8px;font-family:'Fira Code',monospace;font-size:12px;font-weight:600;color:var(--text-strong);transition:all .2s;user-select:none}
+.accordion-header:hover{border-color:var(--accent)}
+.accordion-arrow{transition:transform .3s;font-size:10px;color:var(--text-muted)}
+.accordion.open .accordion-arrow{transform:rotate(90deg)}
+.accordion-body{display:none;padding:16px;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;background:var(--bg-card)}
+.accordion.open .accordion-body{display:block}
+
+/* FOOTER */
+.footer{max-width:1060px;margin:0 auto;padding:30px 20px;border-top:1px solid var(--border);text-align:center}
+.footer-text{font-family:'Fira Code',monospace;font-size:9px;color:#555}
+
+@media(max-width:768px){
+  .container{padding:16px 12px}
+  .card{padding:20px 16px}
+  .hdr{padding:28px 16px 24px}
+  .hdr h1{font-size:1.5rem;letter-spacing:2px}
+  .nav-btn{padding:5px 8px;font-size:9px}
+  .nav-inner{gap:2px;padding:6px 10px}
+  pre.diagram{font-size:9px;padding:12px}
+  .timeline{padding-left:34px}
+  .timeline-node{left:-34px;width:28px;height:28px;font-size:10px}
+  .pipeline-step{flex-direction:column;gap:6px}
+  .progress-label{min-width:120px;font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">&#9790;</button>
+
+<!-- HEADER -->
+<div class="hdr">
+  <h1>SILA MASTERPLAN</h1>
+  <div class="h1sub">18 sections · 14 principes · 10 briques IA · V1→V3 · Self-hosted · Apache 2.0</div>
+  <p class="subtitle">Pipeline IA de Traduction &amp; Doublage Vid&eacute;o Multilingue</p>
+  <div class="hdr-badges">
+    <span class="badge badge-green badge-pill">v1.0.0</span>
+    <span class="badge badge-amber badge-pulse">DRAFT</span>
+    <span class="badge badge-purple">SILA — Seamless International Language Automation</span>
+  </div>
+  <div class="hdr-meta">
+    <span>Date : 2026-03-22</span>
+    <span>Auteur : Comit&eacute; d'architecture (4 experts)</span>
+    <span>Licence : &Agrave; d&eacute;finir</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav"><div class="nav-inner" id="navBar">
+  <a class="nav-btn" href="#s0">0. Utilisation</a>
+  <a class="nav-btn" href="#s1">1. Vision</a>
+  <a class="nav-btn" href="#s2">2. Principes</a>
+  <a class="nav-btn" href="#s3">3. Stack</a>
+  <a class="nav-btn" href="#s4">4. Rejet&eacute;es</a>
+  <a class="nav-btn" href="#s5">5. Architecture</a>
+  <a class="nav-btn" href="#s6">6. DAG</a>
+  <a class="nav-btn" href="#s7">7. Contrats</a>
+  <a class="nav-btn" href="#s8">8. Manifeste</a>
+  <a class="nav-btn" href="#s9">9. Monorepo</a>
+  <a class="nav-btn" href="#s10">10. Hardware</a>
+  <a class="nav-btn" href="#s11">11. Infra</a>
+  <a class="nav-btn" href="#s12">12. Erreurs</a>
+  <a class="nav-btn" href="#s13">13. KPI</a>
+  <a class="nav-btn" href="#s14">14. Roadmap</a>
+  <a class="nav-btn" href="#s15">15. Veille</a>
+  <a class="nav-btn" href="#s16">16. Risques</a>
+  <a class="nav-btn" href="#s17">17. Glossaire</a>
+  <a class="nav-btn" href="#s18">18. ADR</a>
+</div></div>
+
+<!-- CONTENT -->
+<div class="container">
+
+<!-- §0 -->
+<div class="card" id="s0">
+  <h2 class="section-title">0. Comment utiliser ce document</h2>
+  <p>Ce masterplan est la <strong>source de v&eacute;rit&eacute; unique</strong> du projet. Toute d&eacute;cision d'architecture, de stack ou de workflow doit y &ecirc;tre r&eacute;f&eacute;renc&eacute;e ou en &ecirc;tre d&eacute;riv&eacute;e.</p>
+  <h3>R&egrave;gles de gouvernance</h3>
+  <ul>
+    <li>Toute modification doit &ecirc;tre versionn&eacute;e (Git) avec un message de commit explicite.</li>
+    <li>Les d&eacute;cisions verrouill&eacute;es (<span class="status status-locked">&#x2705; VERROUILL&Eacute;</span>) ne peuvent &ecirc;tre modifi&eacute;es que par revue explicite du comit&eacute;.</li>
+    <li>Les sections marqu&eacute;es <span class="status status-eval">&#x1F504; EN &Eacute;VALUATION</span> seront verrouill&eacute;es avant impl&eacute;mentation.</li>
+    <li>Ce document est en Markdown, versionn&eacute; dans le repo, relu en PR.</li>
+  </ul>
+</div>
+
+<!-- §1 -->
+<div class="card" id="s1">
+  <h2 class="section-title">1. Vision et p&eacute;rim&egrave;tre</h2>
+  <h3>1.1 Objectif</h3>
+  <p>Construire un pipeline self-hosted, modulaire et industrialisable, capable de prendre en entr&eacute;e une vid&eacute;o longue (jusqu'&agrave; 1h+), d'en produire des versions doubl&eacute;es dans plusieurs langues cibles, avec une voix clon&eacute;e coh&eacute;rente, un alignement temporel contr&ocirc;l&eacute;, et un rendu audio cr&eacute;dible.</p>
+  <h3>1.2 Ce que le syst&egrave;me fait</h3>
+  <ul>
+    <li>Extraire l'audio d'une vid&eacute;o source</li>
+    <li>S&eacute;parer la voix du fond sonore (musique, ambiance, SFX)</li>
+    <li>Transcrire la parole avec timestamps mot-&agrave;-mot et identification des locuteurs</li>
+    <li>Segmenter le contenu parl&eacute; en unit&eacute;s de traduction/TTS</li>
+    <li>Traduire chaque segment vers N langues cibles avec contexte et glossaire</li>
+    <li>R&eacute;&eacute;crire les traductions trop longues pour respecter le timing original</li>
+    <li>Cloner la voix et g&eacute;n&eacute;rer l'audio cible par segment et par langue</li>
+    <li>Ajuster la dur&eacute;e de chaque segment TTS pour respecter le slot temporel</li>
+    <li>Mixer l'audio TTS avec le fond sonore, normaliser le loudness</li>
+    <li>Remuxer l'audio final avec la piste vid&eacute;o source (sans r&eacute;encodage)</li>
+    <li>Exporter un fichier MP4 par langue cible</li>
+  </ul>
+  <h3>1.3 Ce que le syst&egrave;me ne fait pas</h3>
+  <ul>
+    <li>Temps r&eacute;el ou streaming live</li>
+    <li>Traitement vid&eacute;o (r&eacute;encodage, modification des frames)</li>
+    <li>Sous-titrage seul (c'est un sous-produit)</li>
+    <li>Qualit&eacute; "studio broadcast" universelle</li>
+    <li>Lip-sync en V1-V2</li>
+  </ul>
+  <h3>1.4 Cadre par d&eacute;faut</h3>
+  <ul>
+    <li>Self-hosted, local ou infra priv&eacute;e</li>
+    <li>Vid&eacute;os longues (1h+) comme cas normal</li>
+    <li>Pipeline relan&ccedil;able, batchable, parall&eacute;lisable et auditable</li>
+    <li>Approche r&eacute;aliste et industrialisable, pas d&eacute;mo th&eacute;orique</li>
+    <li>Pas de SaaS manag&eacute; sauf n&eacute;cessit&eacute; d&eacute;montr&eacute;e</li>
+  </ul>
+</div>
+
+<!-- §2 -->
+<div class="card" id="s2">
+  <h2 class="section-title">2. Principes fondateurs</h2>
+  <h3>2.1 Principes architecturaux verrouill&eacute;s</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>#</th><th>Principe</th><th>Description</th></tr></thead>
+  <tbody>
+  <tr><td>P1</td><td><strong>Timing contract</strong></td><td>Chaque segment porte un <code>timing_budget_ms</code> d&egrave;s la segmentation.</td></tr>
+  <tr><td>P2</td><td><strong>Cascade de dur&eacute;e</strong></td><td>Segmenter &rarr; budget &rarr; traduire &rarr; r&eacute;&eacute;crire si n&eacute;cessaire &rarr; ajuster prosodie TTS &rarr; time-stretch &le;1.25&times;.</td></tr>
+  <tr><td>P3</td><td><strong>Tronc commun</strong></td><td>&Eacute;tapes 1-4 ex&eacute;cut&eacute;es une seule fois, quel que soit le nombre de langues cibles.</td></tr>
+  <tr><td>P4</td><td><strong>Manifeste central</strong></td><td>Un JSON par projet, source de v&eacute;rit&eacute; pour l'&eacute;tat, la reprise, le cache et l'audit.</td></tr>
+  <tr><td>P5</td><td><strong>Timebase 48 kHz</strong></td><td>R&eacute;f&eacute;rence ma&icirc;tre. Downsampling 16 kHz uniquement pour Whisper.</td></tr>
+  <tr><td>P6</td><td><strong>Profil voix global</strong></td><td>Embedding moyen sur les 10 meilleurs segments par locuteur.</td></tr>
+  <tr><td>P7</td><td><strong>Mapping speaker</strong></td><td><code>speaker_id &rarr; voice_profile &rarr; target_voice_id &rarr; target_lang</code></td></tr>
+  <tr><td>P8</td><td><strong>Crossfade 50 ms</strong></td><td>Entre segments TTS finaux. Pas 200-300 ms.</td></tr>
+  <tr><td>P9</td><td><strong>Segments 3s-10s</strong></td><td>Dur&eacute;e cible pour le TTS. Hard cap &agrave; 12s.</td></tr>
+  <tr><td>P10</td><td><strong>Loudness -16 LUFS</strong></td><td>Cible web/streaming, norme EBU R128.</td></tr>
+  <tr><td>P11</td><td><strong>Idempotence</strong></td><td>M&ecirc;me entr&eacute;e + m&ecirc;me config &rarr; skip si sortie valide. Seed fixe pour TTS.</td></tr>
+  <tr><td>P12</td><td><strong>Interchangeabilit&eacute;</strong></td><td>S&eacute;parer interface de t&acirc;che et moteur concret. Chaque moteur est swappable.</td></tr>
+  <tr><td>P13</td><td><strong>Artefacts immuables</strong></td><td>Chaque sortie est un fichier immuable avec hash. Pas de modification in-place.</td></tr>
+  <tr><td>P14</td><td><strong>Vid&eacute;o source intouchable</strong></td><td>La piste vid&eacute;o n'est jamais r&eacute;encod&eacute;e avant le remux final.</td></tr>
+  </tbody></table></div>
+
+  <h3>2.2 S&eacute;parations conceptuelles</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Concept A</th><th>&ne;</th><th>Concept B</th></tr></thead>
+  <tbody>
+  <tr><td>Segmentation physique (chunks)</td><td></td><td>Segmentation logique (segments m&eacute;tier)</td></tr>
+  <tr><td>Orchestration (&eacute;tat, DAG, retries)</td><td></td><td>Traitement IA (production de contenu)</td></tr>
+  <tr><td>Traitement IA</td><td></td><td>Post-production m&eacute;dia</td></tr>
+  <tr><td>Interface de t&acirc;che</td><td></td><td>Moteur concret</td></tr>
+  <tr><td>Audio d'analyse (16 kHz)</td><td></td><td>Audio de travail (48 kHz)</td></tr>
+  <tr><td>Audio de travail</td><td></td><td>Audio master (mix&eacute;, normalis&eacute;)</td></tr>
+  </tbody></table></div>
+
+  <h3>2.3 Niveaux de contexte</h3>
+  <ol>
+    <li><strong>Narratif</strong> : r&eacute;sum&eacute; sc&egrave;ne/chapitre, sujet global, progression.</li>
+    <li><strong>Locuteur</strong> : registre de langue, identit&eacute; vocale, style.</li>
+    <li><strong>Terminologique</strong> : glossaire projet, noms propres, acronymes.</li>
+  </ol>
+</div>
+
+<!-- §3 -->
+<div class="card" id="s3">
+  <h2 class="section-title">3. Stack technologique verrouill&eacute;e</h2>
+  <h3>3.1 Briques retenues</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Fonction</th><th>Brique</th><th>Licence</th><th>VRAM</th><th>Statut</th></tr></thead>
+  <tbody>
+  <tr><td>Extraction / remux</td><td>FFmpeg 6+</td><td>LGPL 2.1</td><td>0 (CPU)</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>S&eacute;paration vocale</td><td>Demucs v4 (htdemucs_ft)</td><td>MIT</td><td>~4 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>ASR</td><td>WhisperX (large-v3 + pyannote 3.1)</td><td>BSD-4</td><td>~8 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>Traduction</td><td>NLLB-200 3.3B via CTranslate2</td><td>CC-BY-NC 4.0</td><td>~3 Go int8 CPU</td><td><span class="status status-warn">&#x26A0;&#xFE0F; Licence</span></td></tr>
+  <tr><td>Traduction (alt.)</td><td>MADLAD-400 via CTranslate2</td><td>Apache 2.0</td><td>~3 Go</td><td><span class="status status-eval">&#x1F504; Si commercial</span></td></tr>
+  <tr><td>R&eacute;&eacute;criture (V2)</td><td>Mistral Small 3.2 24B</td><td>Apache 2.0</td><td>~15 Go</td><td><span class="status status-locked">&#x2705; Retenu V2</span></td></tr>
+  <tr><td>R&eacute;&eacute;criture (fallback)</td><td>Ministral 3 8B</td><td>Apache 2.0</td><td>~5 Go</td><td><span class="status status-locked">&#x2705; Retenu V2</span></td></tr>
+  <tr><td>TTS principal</td><td>CosyVoice 3.0 (0.5B)</td><td>Apache 2.0</td><td>~4 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>TTS alternatif</td><td>Qwen3-TTS 1.7B</td><td>Apache 2.0</td><td>~6 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>Time-stretching</td><td>pyrubberband</td><td>MIT</td><td>0 (CPU)</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>Loudness</td><td>FFmpeg loudnorm (EBU R128)</td><td>&mdash;</td><td>0 (CPU)</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>Orchestration</td><td>Script s&eacute;q. (V1), Celery (V2), Temporal (V3)</td><td>BSD/MIT</td><td>0</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>Qualit&eacute; audio</td><td>UTMOS</td><td>&mdash;</td><td>~1 Go</td><td><span class="status status-locked">&#x2705; Retenu</span></td></tr>
+  <tr><td>Base de donn&eacute;es</td><td>JSON (V1), PostgreSQL 16 (V2+)</td><td>PostgreSQL Lic.</td><td>0</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  </tbody></table></div>
+
+  <h3>3.2 Note licence NLLB-200</h3>
+  <p>Les poids NLLB-200 sont sous <strong>CC-BY-NC 4.0</strong> (non-commercial). Pour usage commercial, basculer vers <strong>MADLAD-400</strong> (Apache 2.0). Faire valider par un juriste avant mise en production.</p>
+
+  <h3>3.3 D&eacute;tail des briques TTS</h3>
+  <h4>CosyVoice 3.0 (principal)</h4>
+  <ul>
+    <li><strong>Mod&egrave;le</strong> : Fun-CosyVoice3-0.5B-2512</li>
+    <li><strong>Langues</strong> : 9 (zh, en, ja, ko, de, es, fr, it, ru) + 18 dialectes chinois</li>
+    <li><strong>Features</strong> : Zero-shot cross-lingual cloning, pronunciation inpainting, instruction-based control, streaming</li>
+    <li><strong>Taux d'erreur</strong> : CER 0.81%, speaker similarity 77.4%</li>
+    <li><strong>Sample rate</strong> : 22.05 kHz interne &rarr; resample 48 kHz en sortie</li>
+  </ul>
+  <h4>Qwen3-TTS (alternatif)</h4>
+  <ul>
+    <li><strong>Mod&egrave;le</strong> : Qwen3-TTS-12Hz-1.7B-Base + CustomVoice</li>
+    <li><strong>Langues</strong> : 10 (zh, en, ja, ko, de, fr, ru, pt, es, it)</li>
+    <li><strong>Features</strong> : Clonage 3s de r&eacute;f&eacute;rence, voice design textuel, g&eacute;n&eacute;ration longue (10 min)</li>
+    <li><strong>Taux d'erreur</strong> : WER 1.835%, speaker similarity 0.789</li>
+  </ul>
+
+  <h3>3.4 LLM de r&eacute;&eacute;criture (V2)</h3>
+  <h4>Mistral Small 3.2 24B (principal)</h4>
+  <ul>
+    <li>Quantification : Unsloth Dynamic 2.0 Q4_K_M (~15 Go VRAM)</li>
+    <li>Multilingue 40+ langues, function calling, JSON output, context 128k</li>
+  </ul>
+  <h4>Ministral 3 8B (fallback)</h4>
+  <ul><li>~5 Go VRAM. Usage : quand la VRAM est occup&eacute;e par le TTS.</li></ul>
+</div>
+
+<!-- §4 -->
+<div class="card" id="s4">
+  <h2 class="section-title">4. Briques explicitement rejet&eacute;es</h2>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Brique</th><th>Raison du rejet</th></tr></thead>
+  <tbody>
+  <tr><td>XTTS v2 (Coqui)</td><td>Licence CPML non-commercial. Coqui ferm&eacute;.</td></tr>
+  <tr><td>Wav2Lip</td><td>Licence non-commerciale. Dat&eacute; (2020). Qualit&eacute; insuffisante.</td></tr>
+  <tr><td>M2M100</td><td>Remplac&eacute; par NLLB-200 (sup&eacute;rieur sur toutes les paires).</td></tr>
+  <tr><td>Voicebox (jamiepine)</td><td>Wrapper communautaire sans poids officiels Meta.</td></tr>
+  <tr><td>OpenVoice V2 seul</td><td>Ne clone que la couleur tonale, pas accent/&eacute;motion.</td></tr>
+  <tr><td>Orpheus TTS</td><td>Multilingue en "research preview" seulement.</td></tr>
+  <tr><td>Fish Speech</td><td>Moins mature que CosyVoice/Qwen3-TTS en cross-lingual.</td></tr>
+  <tr><td>SeamlessM4T</td><td>Speech-to-speech. Mauvais outil pour pipeline text-to-text segment&eacute;.</td></tr>
+  <tr><td>Mistral Small 4 (119B MoE)</td><td>242 Go disque, 2+ GPU. Incompatible &lt;24 Go VRAM.</td></tr>
+  <tr><td>vLLM + Llama 3 70B</td><td>Surdimensionn&eacute;. NLLB-200 sup&eacute;rieur en traduction pure et 10&times; plus rapide.</td></tr>
+  <tr><td>Triton Inference Server</td><td>Over-engineering V1-V2. vLLM/llama.cpp suffisent.</td></tr>
+  <tr><td>RabbitMQ</td><td>Plus complexe que Redis. Celery + Redis suffit en V2.</td></tr>
+  <tr><td>Kubernetes V1-V2</td><td>Over-engineering. Docker Compose suffit.</td></tr>
+  <tr><td>Microservices V1</td><td>Over-engineering. Fonctions modulaires + Celery suffisent.</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §5 -->
+<div class="card" id="s5">
+  <h2 class="section-title">5. Architecture logicielle</h2>
+  <h3>5.1 V1 &mdash; Script s&eacute;quentiel</h3>
+  <pre class="diagram"><code>CLI (Python)
+  └── Pipeline séquentiel
+        ├── extract_audio()
+        ├── transcribe()        → WhisperX
+        ├── segment()           → Règles métier Python
+        ├── translate()         → NLLB-200 via CTranslate2
+        ├── generate_tts()      → CosyVoice 3.0
+        ├── adjust_timing()     → pyrubberband
+        ├── assemble_audio()    → FFmpeg
+        ├── normalize()         → FFmpeg loudnorm
+        └── export()            → FFmpeg remux
+  └── Manifeste JSON (lecture/écriture à chaque étape)
+  └── Filesystem local (artefacts)</code></pre>
+
+  <h3>5.2 V2 &mdash; API + Workers</h3>
+  <pre class="diagram"><code>┌─────────────────┐     ┌──────────────┐
+│  FastAPI         │────▶│  PostgreSQL   │
+│  (API REST)      │     │  (JSONB)      │
+└────────┬────────┘     └──────────────┘
+         │
+         ▼
+┌─────────────────┐     ┌──────────────┐
+│  Celery          │────▶│  Redis        │
+│  (Orchestrateur) │     │  (Broker)     │
+└────────┬────────┘     └──────────────┘
+         │
+    ┌────┴────┬──────────┬──────────┬──────────┐
+    ▼         ▼          ▼          ▼          ▼
+ Worker    Worker     Worker     Worker     Worker
+ Media     Speech     Translate  TTS        PostProd</code></pre>
+
+  <h3>5.3 Fronti&egrave;res entre domaines</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Domaine</th><th>Responsabilit&eacute;</th><th>Ne touche jamais &agrave;</th></tr></thead>
+  <tbody>
+  <tr><td><strong>Orchestration</strong></td><td>&Eacute;tat global, DAG, retries, timeouts</td><td>Fichiers audio/vid&eacute;o directement</td></tr>
+  <tr><td><strong>Traitement IA</strong></td><td>ASR, diarisation, traduction, TTS</td><td>&Eacute;tat global du run</td></tr>
+  <tr><td><strong>Post-production</strong></td><td>Timeline, placement, loudness, mix, remux</td><td>Logique m&eacute;tier</td></tr>
+  </tbody></table></div>
+
+  <h3>5.4 Interfaces de t&acirc;che (contrats)</h3>
+  <pre class="diagram"><code>ASR_Interface:
+  input:  audio_path (WAV 16kHz mono)
+  output: TranscriptResult { words[], speakers[], language }
+
+MT_Interface:
+  input:  text, source_lang, target_lang, context[], glossary{}
+  output: TranslationResult { text, estimated_chars, confidence }
+
+TTS_Interface:
+  input:  text, voice_profile, target_lang, target_duration_ms, seed
+  output: TTSResult { audio_path, duration_ms, sample_rate }</code></pre>
+</div>
+
+<!-- §6 -->
+<div class="card" id="s6">
+  <h2 class="section-title">6. Workflow d&eacute;taill&eacute; &mdash; DAG du pipeline</h2>
+  <h3>6.1 Vue d'ensemble du DAG</h3>
+  <div class="pipeline-steps">
+    <div class="pipeline-step"><div class="step-num" style="background:#6366F1">0</div><div class="step-body"><div class="step-title">Phase 0 : INGEST</div><div class="step-detail">Cr&eacute;er projet, uploader vid&eacute;o, ffprobe, &eacute;crire manifeste initial</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#8B5CF6">1</div><div class="step-body"><div class="step-title">Phase 1 : EXTRACTION</div><div class="step-detail">FFmpeg &rarr; audio WAV 48kHz mono + m&eacute;tadonn&eacute;es vid&eacute;o</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#A78BFA">2</div><div class="step-body"><div class="step-title">Phase 2 : S&Eacute;PARATION VOCALE <span class="badge badge-blue">V2+</span></div><div class="step-detail">Demucs v4 &rarr; stems : voice.wav, music.wav, sfx.wav</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#3B82F6">3</div><div class="step-body"><div class="step-title">Phase 3 : ANALYSE SPEECH</div><div class="step-detail">WhisperX ASR &rarr; transcript brut + alignement mot-&agrave;-mot + diarisation [V2+]</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#06B6D4">4</div><div class="step-body"><div class="step-title">Phase 4 : SEGMENTATION LOGIQUE</div><div class="step-detail">R&eacute;conciliation transcript, attribution speaker IDs, segmentation m&eacute;tier (&sect;6.2), attribution timing_budget_ms</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#14B8A6">5</div><div class="step-body"><div class="step-title">Phase 5 : CONTEXTE GLOBAL <span class="badge badge-blue">V2+</span></div><div class="step-detail">R&eacute;sum&eacute; narratif, extraction entit&eacute;s, glossaire projet, profils voix</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#10B981">6</div><div class="step-body"><div class="step-title">Phase 6 : TRADUCTION</div><div class="step-detail">NLLB-200 segment par segment, fen&ecirc;tre glissante 2-3 segments, glossaire + contexte. Classer timing fit.</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#F59E0B">7</div><div class="step-body"><div class="step-title">Phase 7 : R&Eacute;&Eacute;CRITURE CONTRAINTE <span class="badge badge-blue">V2+</span></div><div class="step-detail">Si rewrite_needed : LLM local &rarr; variante courte respectant timing_budget_ms</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#EF4444">8</div><div class="step-body"><div class="step-title">Phase 8 : TTS / VOICE CLONING</div><div class="step-detail">CosyVoice 3.0 par segment. Mesurer dur&eacute;e. Time-stretch &le;1.25&times; si n&eacute;cessaire.</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#EC4899">9</div><div class="step-body"><div class="step-title">Phase 9 : ASSEMBLY AUDIO</div><div class="step-detail">Placer segments sur timeline. Crossfade 50ms. Mixer stems [V2+]. Loudnorm -16 LUFS.</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#F43F5E">10</div><div class="step-body"><div class="step-title">Phase 10 : QC AUTOMATIQUE</div><div class="step-detail">V&eacute;rifier trous, clipping, true peak, loudness, timing fit. Tagger segments probl&eacute;matiques.</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#8B5CF6">11</div><div class="step-body"><div class="step-title">Phase 11 : EXPORT</div><div class="step-detail">FFmpeg remux (vid&eacute;o copy + audio AAC). G&eacute;n&eacute;rer SRT/VTT. Rapport QC JSON.</div></div></div>
+    <div class="pipeline-step"><div class="step-num" style="background:#64748B">12</div><div class="step-body"><div class="step-title">Phase 12 : LIP-SYNC <span class="badge badge-blue">V3</span></div><div class="step-detail">Uniquement sur segments face-cam&eacute;ra avec d&eacute;sync visible.</div></div></div>
+  </div>
+
+  <h3>6.2 R&egrave;gles de segmentation logique</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>#</th><th>R&egrave;gle</th><th>D&eacute;tail</th></tr></thead>
+  <tbody>
+  <tr><td>S1</td><td>Pas de m&eacute;lange de locuteurs</td><td>Un segment = un seul <code>speaker_id</code></td></tr>
+  <tr><td>S2</td><td>Couper sur pause + ponctuation</td><td>Pause &gt; 400ms + ponctuation forte (. ? !)</td></tr>
+  <tr><td>S3</td><td>Dur&eacute;e nominale 4-8s</td><td>C&oelig;ur de distribution vis&eacute;</td></tr>
+  <tr><td>S4</td><td>Hard cap 10s</td><td>Au-del&agrave;, forcer coupe sur ponctuation faible ou pause &gt; 200ms</td></tr>
+  <tr><td>S5</td><td>Minimum 3s</td><td>En dessous, fusionner avec segment adjacent</td></tr>
+  <tr><td>S6</td><td>Seuil adaptatif</td><td>Si contenu dense, r&eacute;duire le seuil &agrave; 300ms</td></tr>
+  <tr><td>S7</td><td>Overlaps</td><td>Flag <code>overlap: true</code>, traitement d&eacute;di&eacute;</td></tr>
+  <tr><td>S8</td><td>Contexte conserv&eacute;</td><td><code>context_left</code> (2-3 seg.) + <code>context_right</code> (1-2 seg.)</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §7 -->
+<div class="card" id="s7">
+  <h2 class="section-title">7. Contrats de donn&eacute;es</h2>
+  <h3>7.1 Transcript canonique (sortie Phase 3)</h3>
+  <pre class="diagram"><code>word_id         : int       — identifiant unique du mot
+chunk_id        : int       — chunk technique d'origine
+speaker_id      : str       — "spk_0", "spk_1", ...
+source_lang     : str       — code ISO 639-1
+start_ms        : int       — début en ms
+end_ms          : int       — fin en ms
+text            : str       — le mot transcrit
+confidence      : float     — 0.0 à 1.0
+is_overlap      : bool
+sentence_id     : int</code></pre>
+
+  <h3>7.2 Segments logiques (sortie Phase 4)</h3>
+  <pre class="diagram"><code>segment_id          : str       — "seg_0001"
+speaker_id          : str
+start_ms            : int
+end_ms              : int
+duration_ms         : int
+timing_budget_ms    : int
+source_text         : str
+source_lang         : str
+context_left        : str       — 2-3 segments précédents
+context_right       : str       — 1-2 segments suivants
+segment_type        : str       — "speech" | "overlap" | "silence" | "music"
+words               : list
+review_flags        : list</code></pre>
+
+  <h3>7.3 Traductions (sortie Phase 6)</h3>
+  <pre class="diagram"><code>segment_id          : str
+target_lang         : str
+translated_text     : str
+alt_text_short      : str|null
+estimated_chars     : int
+estimated_duration_ms : int
+compression_ratio   : float
+timing_fit_status   : str       — "fit_ok" | "rewrite_needed" | "review_required"
+glossary_hits       : list
+mt_engine           : str
+mt_model_version    : str</code></pre>
+
+  <h3>7.4 Sorties TTS (sortie Phase 8)</h3>
+  <pre class="diagram"><code>segment_id          : str
+target_lang         : str
+voice_profile_id    : str
+tts_engine          : str
+audio_uri           : str
+duration_ms         : int
+timing_budget_ms    : int
+timing_delta_ms     : int
+stretch_applied     : bool
+stretch_ratio       : float
+final_audio_uri     : str
+seed                : int
+utmos_score         : float|null</code></pre>
+</div>
+
+<!-- §8 -->
+<div class="card" id="s8">
+  <h2 class="section-title">8. Manifeste central</h2>
+  <h3>8.1 Principes</h3>
+  <ul>
+    <li><strong>V1</strong> : fichier JSON local. Nommage : <code>{project_id}/manifest.json</code>.</li>
+    <li><strong>V2+</strong> : PostgreSQL JSONB comme index. Le JSON reste la source de v&eacute;rit&eacute;.</li>
+    <li>Versionn&eacute; : chaque mise &agrave; jour incr&eacute;mente <code>manifest_version</code>.</li>
+    <li>Nommage d&eacute;terministe : <code>{project_id}/{stage}/{lang}/seg_{index:04d}.wav</code>.</li>
+  </ul>
+  <h3>8.2 Structure du manifeste V1</h3>
+  <div class="accordion" id="acc-manifest">
+    <div class="accordion-header" onclick="toggleAccordion('acc-manifest')"><span class="accordion-arrow">&#9654;</span> Voir la structure JSON compl&egrave;te</div>
+    <div class="accordion-body">
+      <pre class="diagram"><code>{
+  "manifest_version": 1,
+  "pipeline_version": "0.1.0",
+  "created_at": "2026-03-22T14:30:00Z",
+  "updated_at": "2026-03-22T15:12:44Z",
+
+  "project": {
+    "project_id": "proj_20260322_001",
+    "status": "processing",
+    "source_video": "data/projects/.../source/input.mp4",
+    "source_lang": "fr",
+    "target_langs": ["en"],
+    "duration_ms": 600000
+  },
+
+  "source_metadata": {
+    "fps": 29.97, "resolution": "1920x1080",
+    "codec_video": "h264", "codec_audio": "aac",
+    "sample_rate": 48000, "chapters": []
+  },
+
+  "config": {
+    "tts_engine": "cosyvoice-3.0-0.5b",
+    "mt_engine": "nllb-200-3.3b-ct2",
+    "max_segment_duration_ms": 10000,
+    "preferred_segment_duration_ms": 6000,
+    "pause_split_threshold_ms": 400,
+    "crossfade_ms": 50,
+    "max_stretch_ratio": 1.25,
+    "loudness_target_lufs": -16,
+    "tts_seed": 42
+  },
+
+  "speakers": { ... },
+  "stages": {
+    "extract": { "status": "completed", ... },
+    "demucs": { "status": "skipped", "reason": "V1" },
+    "asr": { "status": "completed", ... },
+    "translate_en": { "status": "running", "segments_done": 45, "segments_total": 87 },
+    ...
+  },
+  "segments": [ { "segment_id": "seg_0001", ... } ],
+  "outputs": { "en": { "status": "pending", ... } },
+  "metrics": { "processing_started_at": "...", ... }
+}</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- §9 -->
+<div class="card" id="s9">
+  <h2 class="section-title">9. Structure du monorepo</h2>
+  <div class="accordion" id="acc-monorepo">
+    <div class="accordion-header" onclick="toggleAccordion('acc-monorepo')"><span class="accordion-arrow">&#9654;</span> Voir l'arborescence compl&egrave;te</div>
+    <div class="accordion-body">
+      <pre class="diagram"><code>SILA/
+├── SILA_Masterplan.md              ← Ce document
+├── CLAUDE.md                       ← Directives d'implémentation
+├── pyproject.toml                  ← Config projet Python
+├── Makefile                        ← Commandes courantes
+│
+├── src/
+│   ├── cli/main.py                 ← Point d'entrée CLI
+│   ├── pipeline/                   ← Orchestration (runner, dag, stages)
+│   ├── core/                       ← Logique métier pure
+│   │   ├── manifest.py             ← Lecture/écriture manifeste
+│   │   ├── segment.py              ← Segmentation logique
+│   │   ├── timing.py               ← Timing optimizer
+│   │   └── models.py               ← Dataclasses / Pydantic
+│   ├── engines/                    ← Moteurs IA (ABC + implémentations)
+│   │   ├── asr/ mt/ tts/ rewrite/ separation/ qc/
+│   └── media/                      ← FFmpeg, rubberband, assembly, mix
+│
+├── configs/                        ← YAML configs + glossaires
+├── data/projects/                  ← Données (gitignored)
+│   └── {project_id}/
+│       ├── source/input.mp4
+│       ├── extracted/audio_48k.wav
+│       ├── asr/transcript.json
+│       ├── tts/{lang}/seg_0001.wav
+│       ├── mix/{lang}/mix_final.wav
+│       ├── exports/output_{lang}.mp4
+│       └── manifest.json
+│
+├── models/                         ← Poids modèles (gitignored)
+├── tests/ (unit, integration, e2e, regression)
+├── scripts/
+├── docker/ (Dockerfile.base, .gpu, docker-compose.v1/v2/v3.yml)
+└── docs/</code></pre>
+    </div>
+  </div>
+</div>
+
+<!-- §10 -->
+<div class="card" id="s10">
+  <h2 class="section-title">10. Architecture mat&eacute;rielle</h2>
+  <h3>10.1 Profils GPU</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Profil</th><th>Hardware</th><th>Usage</th><th>Capacit&eacute;</th></tr></thead>
+  <tbody>
+  <tr><td>Minimum (V1)</td><td>1&times; RTX 4090 (24 Go)</td><td>WhisperX + CosyVoice s&eacute;q.</td><td>~10 min vid&eacute;o/h/langue</td></tr>
+  <tr><td>Recommand&eacute; (V2)</td><td>2&times; RTX 4090 ou 1&times; A6000</td><td>ASR GPU0 + TTS batch GPU1</td><td>~30 min/h/langue</td></tr>
+  <tr><td>Production (V3)</td><td>2-4&times; RTX 4090</td><td>Parall&eacute;lisme complet</td><td>~1h vid&eacute;o/h/3 langues</td></tr>
+  </tbody></table></div>
+
+  <h3>10.2 Budget VRAM par &eacute;tape</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>&Eacute;tape</th><th>Mod&egrave;le</th><th>VRAM</th><th>Dur&eacute;e (1h vid&eacute;o)</th></tr></thead>
+  <tbody>
+  <tr><td>Demucs v4</td><td>htdemucs_ft</td><td>~4 Go</td><td>~10 min</td></tr>
+  <tr><td>WhisperX</td><td>large-v3 + pyannote</td><td>~8 Go</td><td>~15 min</td></tr>
+  <tr><td>NLLB-200</td><td>3.3B int8 CPU</td><td>0 GPU / ~6 Go RAM</td><td>~5 min</td></tr>
+  <tr><td>CosyVoice 3.0</td><td>0.5B</td><td>~4 Go</td><td>~60-120 min</td></tr>
+  <tr><td>Mistral Small 3.2</td><td>24B Q4_K_M</td><td>~15 Go</td><td>~10 min</td></tr>
+  <tr><td>UTMOS</td><td>&mdash;</td><td>~1 Go</td><td>~5 min</td></tr>
+  </tbody></table></div>
+  <p><strong>VRAM peak s&eacute;quentiel</strong> : ~15 Go (Mistral seul) ou ~8 Go (WhisperX). Jamais les deux simultan&eacute;ment en V1.</p>
+
+  <h3>10.3 Stockage estim&eacute;</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Composant</th><th>Taille (1h vid&eacute;o, 3 langues)</th></tr></thead>
+  <tbody>
+  <tr><td>Vid&eacute;o source</td><td>~5 Go</td></tr>
+  <tr><td>Audio extrait (48 kHz WAV)</td><td>~600 Mo</td></tr>
+  <tr><td>Stems Demucs</td><td>~1.8 Go</td></tr>
+  <tr><td>Segments TTS</td><td>~3-6 Go</td></tr>
+  <tr><td>Mix finaux</td><td>~1.2 Go</td></tr>
+  <tr><td>Exports MP4</td><td>~15 Go</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>~27 Go (~21 Go apr&egrave;s purge)</strong></td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §11 -->
+<div class="card" id="s11">
+  <h2 class="section-title">11. Infrastructure et d&eacute;ploiement</h2>
+  <h3>11.1 Docker Compose V1</h3>
+  <div class="accordion" id="acc-docker-v1">
+    <div class="accordion-header" onclick="toggleAccordion('acc-docker-v1')"><span class="accordion-arrow">&#9654;</span> docker-compose.v1.yml (container unique GPU)</div>
+    <div class="accordion-body">
+      <pre class="diagram"><code>services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gpu
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./configs:/app/configs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - CUDA_VISIBLE_DEVICES=0
+    command: >
+      python -m src.cli.main
+        --input /app/data/projects/demo/source/input.mp4
+        --target-lang en</code></pre>
+    </div>
+  </div>
+
+  <h3>11.2 Docker Compose V2</h3>
+  <div class="accordion" id="acc-docker-v2">
+    <div class="accordion-header" onclick="toggleAccordion('acc-docker-v2')"><span class="accordion-arrow">&#9654;</span> docker-compose.v2.yml (API + Workers)</div>
+    <div class="accordion-body">
+      <pre class="diagram"><code>services:
+  postgres:  (PostgreSQL 16, port 5432)
+  redis:     (Redis 7, port 6379)
+  api:       (FastAPI, port 8000, depends: postgres, redis)
+  worker-media:     (Celery -Q media -c 2)
+  worker-speech:    (Celery -Q speech -c 1, GPU)
+  worker-translate: (Celery -Q translate -c 4)
+  worker-tts:       (Celery -Q tts -c 1, GPU)
+  worker-postprod:  (Celery -Q postprod -c 2)
+  flower:           (Monitoring, port 5555)</code></pre>
+    </div>
+  </div>
+
+  <h3>11.3 Conventions de nommage</h3>
+  <pre class="diagram"><code>data/projects/{project_id}/source/input.mp4
+data/projects/{project_id}/extracted/audio_48k.wav
+data/projects/{project_id}/asr/transcript.json
+data/projects/{project_id}/tts/{lang}/seg_{index:04d}.wav
+data/projects/{project_id}/tts/{lang}/seg_{index:04d}_adj.wav
+data/projects/{project_id}/mix/{lang}/mix_final.wav
+data/projects/{project_id}/exports/output_{lang}.mp4
+data/projects/{project_id}/manifest.json</code></pre>
+  <p>Nommage d&eacute;terministe, index 4 chiffres padd&eacute;s, suffixe <code>_adj</code> pour post-stretch.</p>
+</div>
+
+<!-- §12 -->
+<div class="card" id="s12">
+  <h2 class="section-title">12. Gestion d'erreurs et reprise</h2>
+  <h3>12.1 Cl&eacute; d'idempotence</h3>
+  <pre class="diagram"><code>idempotency_key = sha256(
+  project_id + stage_name + target_lang +
+  segment_id + model_name + model_version +
+  params_hash + input_artifact_hash
+)</code></pre>
+
+  <h3>12.2 Politique de retry</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Cas</th><th>Action</th></tr></thead>
+  <tbody>
+  <tr><td>OOM GPU, timeout, erreur stockage</td><td>Retry 3&times; backoff exponentiel (2s, 8s, 32s)</td></tr>
+  <tr><td>Worker crash</td><td>Celery re-dispatch automatique</td></tr>
+  <tr><td>Langue non support&eacute;e TTS</td><td>Fallback moteur alternatif ou hard-fail avec flag</td></tr>
+  <tr><td>Voice profile manquant</td><td>Flag review_required + fallback voix g&eacute;n&eacute;rique</td></tr>
+  <tr><td>Timing impossible (stretch &gt; 1.25&times;)</td><td>Flag review_required, garder stretch&eacute; &agrave; 1.25&times;</td></tr>
+  <tr><td>Segment pathologique</td><td>Quarantaine + flag manual_review</td></tr>
+  <tr><td>3 &eacute;checs cons&eacute;cutifs</td><td>Dead letter &rarr; statut failed</td></tr>
+  </tbody></table></div>
+
+  <h3>12.3 Granularit&eacute; de relance (V1)</h3>
+  <pre class="diagram"><code>--retry segment seg_0042 --lang en
+--retry failed --lang en
+--retry from-stage translate --lang en
+--retry stage assembly --lang en</code></pre>
+
+  <h3>12.4 Validation avant export</h3>
+  <ul>
+    <li>&lt; 5% en failed &rarr; proposer export partiel (segments failed = silence)</li>
+    <li>&gt; 5% en failed &rarr; bloquer l'export, signaler &agrave; l'op&eacute;rateur</li>
+  </ul>
+</div>
+
+<!-- §13 -->
+<div class="card" id="s13">
+  <h2 class="section-title">13. KPI et quality gates</h2>
+  <h3>13.1 KPI de performance</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>M&eacute;trique</th><th>Cible V1</th><th>Cible V2</th></tr></thead>
+  <tbody>
+  <tr><td>Ratio temps / dur&eacute;e vid&eacute;o</td><td>&lt; 10&times;</td><td>&lt; 5&times;</td></tr>
+  <tr><td>Taux d'&eacute;chec segment</td><td>&lt; 5%</td><td>&lt; 1%</td></tr>
+  <tr><td>Cache hit rate</td><td>&mdash;</td><td>&gt; 30%</td></tr>
+  </tbody></table></div>
+
+  <h3>13.2 KPI de qualit&eacute; audio</h3>
+  <div class="progress-row"><span class="progress-label">Segments dans le slot &plusmn;15%</span><div class="progress-bar"><div class="progress-fill" style="width:85%;background:#10B981"></div></div><span class="progress-value">V1: &gt;85%</span></div>
+  <div class="progress-row"><span class="progress-label">Segments dans le slot &plusmn;15%</span><div class="progress-bar"><div class="progress-fill" style="width:90%;background:#3B82F6"></div></div><span class="progress-value">V2: &gt;90%</span></div>
+  <div class="progress-row"><span class="progress-label">MOS estim&eacute; (UTMOS)</span><div class="progress-bar"><div class="progress-fill" style="width:70%;background:#10B981"></div></div><span class="progress-value">V1: &gt;3.5/5</span></div>
+  <div class="progress-row"><span class="progress-label">MOS estim&eacute; (UTMOS)</span><div class="progress-bar"><div class="progress-fill" style="width:76%;background:#3B82F6"></div></div><span class="progress-value">V2: &gt;3.8/5</span></div>
+  <div class="progress-row"><span class="progress-label">Drift temporel moyen</span><div class="progress-bar"><div class="progress-fill" style="width:80%;background:#10B981"></div></div><span class="progress-value">V1: &lt;200ms</span></div>
+  <div class="progress-row"><span class="progress-label">Segments stretch&eacute;s &gt;1.15&times;</span><div class="progress-bar"><div class="progress-fill" style="width:15%;background:#F59E0B"></div></div><span class="progress-value">V1: &lt;15%</span></div>
+  <div class="progress-row"><span class="progress-label">Loudness final</span><div class="progress-bar"><div class="progress-fill" style="width:94%;background:#10B981"></div></div><span class="progress-value">-16&plusmn;1 LUFS</span></div>
+  <div class="progress-row"><span class="progress-label">Clipping rate</span><div class="progress-bar"><div class="progress-fill" style="width:100%;background:#10B981"></div></div><span class="progress-value">0%</span></div>
+
+  <h3>13.3 Quality gates</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Gate</th><th>Condition</th><th>Cons&eacute;quence</th></tr></thead>
+  <tbody>
+  <tr><td>Post-ASR</td><td>WER &lt; 10% sur golden set</td><td>Ne pas poursuivre</td></tr>
+  <tr><td>Post-traduction</td><td>0 segment sans traduction</td><td>Retry ou review</td></tr>
+  <tr><td>Post-TTS</td><td>UTMOS moyen &gt; 3.5 [V2+]</td><td>Retry avec param&egrave;tres ajust&eacute;s</td></tr>
+  <tr><td>Pr&eacute;-export</td><td>100% segments completed</td><td>Bloquer si &gt; 5% failed</td></tr>
+  <tr><td>Post-export</td><td>Loudness -16 &plusmn; 1 LUFS</td><td>Re-normalisation</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §14 -->
+<div class="card" id="s14">
+  <h2 class="section-title">14. Roadmap V1 / V2 / V3</h2>
+
+  <div class="timeline">
+    <div class="timeline-row">
+      <div class="timeline-node" style="background:#10B981">V1</div>
+      <div class="timeline-content">
+        <div class="timeline-title">"Proof of Value" &mdash; 6-8 semaines</div>
+        <div class="timeline-detail">
+          <p><strong>Inclus :</strong> CLI Python, vid&eacute;o &le;10 min, 1 locuteur, 1 langue cible, CosyVoice 3.0, WhisperX monolithique, manifeste JSON, script s&eacute;quentiel, nommage d&eacute;terministe, reprise par &eacute;tape, FFmpeg loudnorm global.</p>
+          <p><strong>Exclu :</strong> API REST, vid&eacute;os &gt;10 min, multi-locuteurs, multi-langues, d&eacute;composition ASR, PostgreSQL, Celery/Redis, Demucs, diarisation, r&eacute;&eacute;criture LLM, lip-sync, parall&eacute;lisme.</p>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-node" style="background:#3B82F6">V2</div>
+      <div class="timeline-content">
+        <div class="timeline-title">"Production interne" &mdash; 3-4 mois apr&egrave;s V1</div>
+        <div class="timeline-detail">
+          <p>Multi-locuteurs (pyannote), multi-langues (fan-out parall&egrave;le), Demucs v4, d&eacute;composition WhisperX, &eacute;valuation Qwen3-ASR, r&eacute;&eacute;criture contrainte (Mistral 24B), Celery + Redis, FastAPI, PostgreSQL JSONB, UTMOS, benchmark TTS, vid&eacute;os 1h+, glossaire, pyloudnorm.</p>
+        </div>
+      </div>
+    </div>
+    <div class="timeline-row">
+      <div class="timeline-node" style="background:#8B5CF6">V3</div>
+      <div class="timeline-content">
+        <div class="timeline-title">"Produit" &mdash; 3-4 mois apr&egrave;s V2</div>
+        <div class="timeline-detail">
+          <p>UI review, lip-sync conditionnel (MuseTalk/Hallo2), d&eacute;tection &eacute;motions, export multi-piste, Temporal, S3/MinIO, monitoring Prometheus + Grafana, auto-routing TTS.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- §15 -->
+<div class="card" id="s15">
+  <h2 class="section-title">15. Veille technologique</h2>
+  <h3>15.1 Repos critiques (suivi hebdomadaire)</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Repo</th><th>Raison</th><th>Action</th></tr></thead>
+  <tbody>
+  <tr><td>FunAudioLLM/CosyVoice</td><td>TTS principal</td><td>&Eacute;valuer chaque release majeure</td></tr>
+  <tr><td>QwenLM/Qwen3-TTS</td><td>TTS alternatif</td><td>Benchmark chaque release</td></tr>
+  <tr><td>m-bain/whisperX</td><td>ASR principal (maintenance&nbsp;?)</td><td>&Eacute;valuer BetterWhisperX si stale &gt;6 mois</td></tr>
+  <tr><td>lihqi/BetterWhisperX</td><td>Fork maintenu</td><td>Candidat remplacement</td></tr>
+  <tr><td>facebookresearch/demucs</td><td>S&eacute;paration vocale (archiv&eacute;)</td><td>Surveiller forks actifs</td></tr>
+  <tr><td>OpenNMT/CTranslate2</td><td>Runtime MT</td><td>Compatibilit&eacute; nouveaux mod&egrave;les</td></tr>
+  <tr><td>unslothai/unsloth</td><td>Quantification GGUF</td><td>Nouvelles quants</td></tr>
+  <tr><td>mistralai</td><td>Mod&egrave;les LLM</td><td>Nouvelles versions r&eacute;&eacute;criture</td></tr>
+  </tbody></table></div>
+
+  <h3>15.2 Mod&egrave;les &agrave; surveiller</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Domaine</th><th>Mod&egrave;le</th><th>Pourquoi</th></tr></thead>
+  <tbody>
+  <tr><td>ASR</td><td>Qwen3-ASR</td><td>Nouveau SOTA ASR open-source. Candidat V2.</td></tr>
+  <tr><td>ASR</td><td>Canary Qwen 2.5B (NVIDIA)</td><td>Top HuggingFace Open ASR leaderboard.</td></tr>
+  <tr><td>TTS</td><td>GLM-TTS (Zhipu)</td><td>Reinforcement learning, bonne qualit&eacute; zh/en.</td></tr>
+  <tr><td>MT</td><td>MADLAD-400</td><td>Alternative Apache 2.0 &agrave; NLLB.</td></tr>
+  <tr><td>S&eacute;paration</td><td>Bandit v2</td><td>Successeur potentiel de Demucs.</td></tr>
+  <tr><td>Lip-sync</td><td>MuseTalk / Hallo2</td><td>Alternatives open-source pour V3.</td></tr>
+  </tbody></table></div>
+
+  <h3>15.3 Benchmarks de r&eacute;f&eacute;rence</h3>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Domaine</th><th>Benchmark</th><th>Usage</th></tr></thead>
+  <tbody>
+  <tr><td>ASR</td><td>LibriSpeech, CommonVoice, FLEURS</td><td>WER par langue</td></tr>
+  <tr><td>MT</td><td>FLORES-200, WMT</td><td>BLEU, COMET par paire</td></tr>
+  <tr><td>TTS</td><td>SEED-TTS-Eval, CV3-Eval</td><td>CER, speaker similarity, MOS</td></tr>
+  <tr><td>Audio</td><td>UTMOS, DNSMOS, PESQ</td><td>MOS estim&eacute;</td></tr>
+  <tr><td>Diarisation</td><td>AMI, CALLHOME, DIHARD</td><td>DER</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §16 -->
+<div class="card" id="s16">
+  <h2 class="section-title">16. Risques identifi&eacute;s et mitigations</h2>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>#</th><th>Risque</th><th>Prob.</th><th>Impact</th><th>Mitigation</th></tr></thead>
+  <tbody>
+  <tr><td>R1</td><td>Licence NLLB-200 bloque commercial</td><td><span class="sev sev-high">Haute</span></td><td>Bloquant</td><td>Basculer MADLAD-400 (Apache 2.0)</td></tr>
+  <tr><td>R2</td><td>TTS goulot d'&eacute;tranglement</td><td><span class="sev sev-certain">Certaine</span></td><td>Fort</td><td>Multi-GPU, TensorRT-LLM, batch</td></tr>
+  <tr><td>R3</td><td>Voice cloning in&eacute;gal entre langues</td><td><span class="sev sev-high">Haute</span></td><td>Moyen</td><td>D&eacute;finir tiers de langues</td></tr>
+  <tr><td>R4</td><td>Diarisation fragile &gt;2-3 locuteurs</td><td><span class="sev sev-high">Haute</span></td><td>Fort</td><td>Mode correction manuelle, flags</td></tr>
+  <tr><td>R5</td><td>WhisperX non maintenu (stale)</td><td><span class="sev sev-med">Moyenne</span></td><td>Moyen</td><td>BetterWhisperX fallback, d&eacute;composition V2</td></tr>
+  <tr><td>R6</td><td>Demucs archiv&eacute; par Meta</td><td><span class="sev sev-certain">Av&eacute;r&eacute;</span></td><td>Faible</td><td>Poids fig&eacute;s fonctionnent. Bandit v2.</td></tr>
+  <tr><td>R7</td><td>Timing cass&eacute; malgr&eacute; cascade</td><td><span class="sev sev-med">Moyenne</span></td><td>Fort</td><td>Quality gate post-TTS, review</td></tr>
+  <tr><td>R8</td><td>Mix final amateur sans stems</td><td><span class="sev sev-high">Haute V1</span></td><td>Moyen</td><td>V1 cible podcasts/cours. Demucs V2.</td></tr>
+  <tr><td>R9</td><td>Over-engineering V1 tue le projet</td><td><span class="sev sev-med">Moyenne</span></td><td><span class="sev sev-high">Fatal</span></td><td>Respecter scope V1 strictement</td></tr>
+  <tr><td>R10</td><td>Coh&eacute;rence voix sur 1h</td><td><span class="sev sev-high">Haute</span></td><td>Moyen</td><td>Embedding moyen, seed fixe, UTMOS</td></tr>
+  <tr><td>R11</td><td>&Eacute;volution rapide mod&egrave;les TTS</td><td><span class="sev sev-certain">Certaine</span></td><td><span class="sev sev-low">Positif</span></td><td>P12 (interchangeabilit&eacute;), interfaces abstraites</td></tr>
+  <tr><td>R12</td><td>Cohabitation VRAM LLM + TTS</td><td><span class="sev sev-med">Moyenne</span></td><td>Moyen</td><td>Ministral 8B fallback, scheduling s&eacute;quentiel</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §17 -->
+<div class="card" id="s17">
+  <h2 class="section-title">17. Glossaire</h2>
+  <div class="table-wrap"><table class="gtm-table">
+  <thead><tr><th>Terme</th><th>D&eacute;finition</th></tr></thead>
+  <tbody>
+  <tr><td>Timing contract</td><td>Engagement de dur&eacute;e maximale d'un segment, fix&eacute; d&egrave;s la segmentation.</td></tr>
+  <tr><td>Timing budget</td><td>Dur&eacute;e en ms allou&eacute;e &agrave; un segment pour le TTS + stretch.</td></tr>
+  <tr><td>Cascade de dur&eacute;e</td><td>Strat&eacute;gie multi-&eacute;tapes pour respecter le timing.</td></tr>
+  <tr><td>Tronc commun</td><td>&Eacute;tapes ex&eacute;cut&eacute;es une seule fois quel que soit le nombre de langues.</td></tr>
+  <tr><td>Segment logique</td><td>Unit&eacute; de traduction/TTS (3-10s, mono-speaker).</td></tr>
+  <tr><td>Chunk technique</td><td>D&eacute;coupage physique pour le calcul distribu&eacute; (30-120s avec overlap).</td></tr>
+  <tr><td>Stem</td><td>Piste audio s&eacute;par&eacute;e produite par Demucs.</td></tr>
+  <tr><td>Golden set</td><td>Vid&eacute;os de r&eacute;f&eacute;rence pour benchmarks.</td></tr>
+  <tr><td>Quality gate</td><td>Condition &agrave; remplir avant l'&eacute;tape suivante.</td></tr>
+  <tr><td>Dead letter</td><td>Segment ayant &eacute;chou&eacute; 3&times; &rarr; quarantaine.</td></tr>
+  <tr><td>Fan-out</td><td>Point du DAG o&ugrave; le pipeline se ramifie en N branches.</td></tr>
+  <tr><td>Idempotence</td><td>Op&eacute;ration qui, ex&eacute;cut&eacute;e plusieurs fois, produit le m&ecirc;me r&eacute;sultat.</td></tr>
+  <tr><td>Ducking</td><td>R&eacute;duction automatique du volume de la musique sous la voix.</td></tr>
+  <tr><td>LUFS</td><td>Loudness Units relative to Full Scale &mdash; mesure du loudness per&ccedil;u.</td></tr>
+  <tr><td>CER</td><td>Character Error Rate &mdash; taux d'erreur au caract&egrave;re (TTS).</td></tr>
+  <tr><td>WER</td><td>Word Error Rate &mdash; taux d'erreur au mot (ASR).</td></tr>
+  <tr><td>DER</td><td>Diarization Error Rate.</td></tr>
+  <tr><td>MOS / UTMOS</td><td>Mean Opinion Score / estimateur automatique de MOS.</td></tr>
+  </tbody></table></div>
+</div>
+
+<!-- §18 -->
+<div class="card" id="s18">
+  <h2 class="section-title">18. Historique des d&eacute;cisions (ADR)</h2>
+  <h3>ADR-001 : CosyVoice 3.0 plut&ocirc;t que XTTS v2</h3>
+  <p>CosyVoice 3.0 (Apache 2.0) retenu pour le TTS multilingue avec voice cloning. XTTS v2 rejet&eacute; (CPML non-commercial, Coqui ferm&eacute;). 9 langues couvertes nativement.</p>
+  <h3>ADR-002 : NLLB-200 avec risque licence</h3>
+  <p>NLLB-200 3.3B retenu en V1 (usage interne). MADLAD-400 pr&eacute;par&eacute; comme alternative pour usage commercial.</p>
+  <h3>ADR-003 : Celery + Redis plut&ocirc;t que Temporal V1-V2</h3>
+  <p>V1 = script s&eacute;quentiel. V2 = Celery + Redis. V3 = Temporal. Complexit&eacute; op&eacute;rationnelle minimale au d&eacute;marrage.</p>
+  <h3>ADR-004 : Mistral Small 3.2 24B pour la r&eacute;&eacute;criture</h3>
+  <p>Mistral Small 3.2 24B (Q4_K_M, ~15 Go VRAM) retenu V2. Apache 2.0, 40+ langues, tient sur 1&times; RTX 4090. Fallback Ministral 3 8B ~5 Go.</p>
+  <h3>ADR-005 : Pas de Demucs en V1</h3>
+  <p>V1 cible contenus voix-only (podcasts, cours). Demucs ajout&eacute; en V2 pour les contenus avec musique/SFX.</p>
+</div>
+
+</div><!-- /container -->
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-text">SILA v1.0.0 &mdash; HKCONSEILS &mdash; 2026</div>
+</div>
+
+<script>
+/* ═══ THEME TOGGLE ═══ */
+(function(){
+  var btn=document.getElementById('themeToggle');
+  var root=document.documentElement;
+  function isDark(){var t=root.getAttribute('data-theme');return t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme:dark)').matches)}
+  function apply(){btn.textContent=isDark()?'\u263E':'\u2600'}
+  var saved=localStorage.getItem('sila-mp-theme');
+  if(saved){root.setAttribute('data-theme',saved)}
+  apply();
+  btn.addEventListener('click',function(){
+    var next=isDark()?'light':'dark';
+    root.setAttribute('data-theme',next);
+    localStorage.setItem('sila-mp-theme',next);
+    apply();
+  });
+  try{window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change',function(){
+    if(!localStorage.getItem('sila-mp-theme')){apply()}
+  })}catch(e){}
+})();
+
+/* ═══ ACCORDION ═══ */
+function toggleAccordion(id){
+  var el=document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+/* ═══ NAV ACTIVE STATE (IntersectionObserver) ═══ */
+(function(){
+  var sections=document.querySelectorAll('.card[id]');
+  var navBtns=document.querySelectorAll('.nav-btn');
+  var observer=new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        var id=entry.target.id;
+        navBtns.forEach(function(btn){
+          btn.classList.toggle('active',btn.getAttribute('href')==='#'+id);
+        });
+        /* Scroll nav to keep active button visible */
+        var activeBtn=document.querySelector('.nav-btn.active');
+        if(activeBtn){activeBtn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'})}
+      }
+    });
+  },{rootMargin:'-80px 0px -60% 0px',threshold:0});
+  sections.forEach(function(s){observer.observe(s)});
+})();
+</script>
+</body>
+</html>
