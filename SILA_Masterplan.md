@@ -1,8 +1,8 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
-**Nom de code** : `SILA` — Seamless International Language Automation
-**Version du document** : 1.0.0
-**Date** : 2026-03-22
+**Nom de code** : `video-localization-pipeline`
+**Version du document** : 1.1.0
+**Date** : 2026-03-23
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
@@ -135,7 +135,7 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 |---|---|---|---|---|
 | Extraction / remux | FFmpeg 6+ | LGPL 2.1 | 0 (CPU) | ✅ Verrouillé |
 | Séparation vocale | Demucs v4 (htdemucs_ft) | MIT | ~4 Go | ✅ Verrouillé — repo archivé, dépendance figée |
-| Transcription + alignment + diarisation | WhisperX (large-v3 + pyannote 3.1). Décomposition V2. Qwen3-ASR à évaluer en V2. | BSD-4 | ~8 Go | ✅ Verrouillé |
+| Transcription + alignment + diarisation | WhisperX (large-v3 + pyannote 3.1). Décomposition V2. Qwen3-ASR et Voxtral Mini Transcribe V2 à évaluer en V2. | BSD-4 | ~8 Go | ✅ Verrouillé |
 | Traduction | NLLB-200 3.3B via CTranslate2 | ⚠️ CC-BY-NC 4.0 (poids) + MIT (runtime) | ~3 Go (int8 CPU) | ✅ Verrouillé sous réserve licence |
 | Traduction (alt. commerciale) | MADLAD-400 (Google) via CTranslate2 | Apache 2.0 | ~3 Go (int8 CPU) | 🔄 Si usage commercial |
 | Réécriture contrainte (V2) | Mistral Small 3.2 24B (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~15 Go | ✅ Retenu V2 |
@@ -207,7 +207,8 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 | Orpheus TTS | 3B (Llama backbone). Multilingue en "research preview" seulement. Pas production-ready hors anglais. |
 | Fish Speech | Moins mature que CosyVoice/Qwen3-TTS en cross-lingual. |
 | SeamlessM4T | Speech-to-speech. Mauvais outil pour un pipeline text-to-text segmenté. |
-| Mistral Small 4 (119B MoE) | 242 Go disque, nécessite 2+ GPU. Incompatible contrainte <24 Go VRAM. |
+| Mistral Small 4 (119B MoE) | 242 Go disque, 6B actifs/token. Nécessite 2+ GPU même quantifié. Incompatible contrainte <24 Go VRAM en V1-V2. À surveiller pour V3 si infra multi-GPU dédiée. Apache 2.0, reasoning + vision + coding unifié. |
+| Voxtral Small 24B | ~55 Go VRAM en bf16, nécessite 2× GPU. Trop lourd pour single 3090/4090. Voxtral Mini/Realtime 4B est le bon candidat pour SILA (≤16 Go VRAM). |
 | vLLM + Llama 3 70B (traduction) | Surdimensionné. NLLB-200 supérieur en traduction pure et 10× plus rapide. |
 | Triton Inference Server | Over-engineering V1-V2. vLLM/llama.cpp suffisent. |
 | RabbitMQ | Plus complexe que Redis pour notre cas. Celery + Redis suffit en V2. |
@@ -295,7 +296,7 @@ Chaque brique IA est encapsulée derrière une interface abstraite :
 ASR_Interface:
   input:  audio_path (WAV 16kHz mono)
   output: TranscriptResult { words[], speakers[], language }
-  
+
 MT_Interface:
   input:  text, source_lang, target_lang, context[], glossary{}
   output: TranslationResult { text, estimated_chars, confidence }
@@ -626,7 +627,7 @@ utmos_score         : float|null — score qualité (V2+)
 ## 9. Structure du monorepo
 
 ```
-SILA/
+video-localization-pipeline/
 │
 ├── README.md
 ├── MASTERPLAN.md                    ← Ce document
@@ -659,7 +660,8 @@ SILA/
 │   │   ├── asr/
 │   │   │   ├── interface.py          ← ASR_Interface (ABC)
 │   │   │   ├── whisperx_engine.py    ← Implémentation WhisperX
-│   │   │   └── qwen3_asr_engine.py   ← Implémentation Qwen3-ASR [V2]
+│   │   │   ├── qwen3_asr_engine.py   ← Implémentation Qwen3-ASR [V2]
+│   │   │   └── voxtral_engine.py     ← Implémentation Voxtral Mini Transcribe V2 [V2]
 │   │   ├── mt/
 │   │   │   ├── interface.py          ← MT_Interface (ABC)
 │   │   │   ├── nllb_engine.py        ← Implémentation NLLB-200
@@ -1145,7 +1147,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | Multi-langues | Fan-out parallèle après segmentation |
 | Demucs v4 | Séparation vocale, mix avec stems |
 | Décomposition WhisperX | Whisper + alignement + diarisation séparés |
-| Évaluation Qwen3-ASR | Benchmark vs Whisper large-v3 sur golden set |
+| Évaluation ASR V2 | Benchmark WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2 sur golden set |
 | Réécriture contrainte | Mistral Small 3.2 24B (Unsloth Q4_K_M) |
 | Celery + Redis | Dispatch et parallélisme des tâches |
 | API REST FastAPI | Upload, suivi, téléchargement |
@@ -1184,21 +1186,25 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | [facebookresearch/demucs](https://github.com/facebookresearch/demucs) | Séparation vocale. Repo archivé. | Surveiller les forks actifs |
 | [OpenNMT/CTranslate2](https://github.com/OpenNMT/CTranslate2) | Runtime d'inférence MT. | Compatibilité nouveaux modèles |
 | [unsloth/unsloth](https://github.com/unslothai/unsloth) | Quantification GGUF optimisée. | Nouvelles quants Mistral / LLM |
-| [mistralai](https://github.com/mistralai) | Modèles LLM. Mistral Small 3.x, Ministral. | Nouvelles versions pour réécriture |
+| [mistralai](https://github.com/mistralai) | Écosystème Mistral complet : LLM (Small 3.x, Small 4, Ministral 3), audio (Voxtral), code (Devstral). | Nouvelles versions pour réécriture (LLM) et ASR (Voxtral) |
+| [mistralai/Voxtral-Mini-4B-Realtime-2602](https://github.com/mistralai) | ASR streaming + batch, diarisation native, 13 langues, context biasing, Apache 2.0. | Candidat remplacement WhisperX en V2. Benchmark sur golden set SILA vs WhisperX vs Qwen3-ASR |
 
 ### 15.2 Modèles à surveiller (veille mensuelle)
 
 | Domaine | Modèle à surveiller | Pourquoi |
 |---|---|---|
-| ASR | **Qwen3-ASR** | Nouveau SOTA ASR open-source début 2026. Candidat remplacement Whisper en V2. |
+| ASR | **Voxtral Mini Transcribe V2** (Mistral) | Transcription + diarisation + timestamps + context biasing dans un seul modèle 4B. Apache 2.0. ~16 Go VRAM. Surpasse Whisper large-v3 sur FLEURS (~4% WER). Février 2026. Candidat prioritaire V2. |
+| ASR | **Voxtral Realtime 4B** (Mistral) | Streaming ASR, latence configurable 200ms-2.4s. Apache 2.0 open-weights. Même architecture que Transcribe V2 mais optimisé temps réel. Pertinent si SILA évolue vers du near-realtime. |
+| ASR | **Qwen3-ASR** (Alibaba) | Nouveau SOTA ASR open-source début 2026. Candidat remplacement Whisper en V2. |
 | ASR | **Canary Qwen 2.5B** (NVIDIA) | Top HuggingFace Open ASR leaderboard. Pas de diarisation intégrée. |
 | TTS | **GLM-TTS** (Zhipu) | Reinforcement learning, bonne qualité zh/en. |
 | TTS | **Orpheus TTS** | Si le multilingue sort de "research preview". |
 | MT | **MADLAD-400** | Alternative Apache 2.0 à NLLB. |
 | MT | **Open-NLLB** | Effort communautaire pour des poids NLLB sous licence ouverte. |
+| LLM | **Mistral Small 4** (119B MoE, 6B actifs) | Unifie reasoning + vision + coding. Apache 2.0. Trop lourd pour V1-V2 (242 Go), mais pertinent V3 si infra multi-GPU. Mars 2026. |
+| LLM | **Qwen3.5** | Modèles Alibaba dernière génération. |
 | Séparation | **Bandit v2** | Successeur potentiel de Demucs. |
 | Lip-sync | **MuseTalk** / **Hallo2** | Alternatives open-source à Wav2Lip pour V3. |
-| LLM | **Qwen3.5** | Modèles Alibaba dernière génération. |
 
 ### 15.3 Benchmarks de référence
 

@@ -182,12 +182,12 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
   <div class="h1sub">18 sections · 14 principes · 10 briques IA · V1→V3 · Self-hosted · Apache 2.0</div>
   <p class="subtitle">Pipeline IA de Traduction &amp; Doublage Vid&eacute;o Multilingue</p>
   <div class="hdr-badges">
-    <span class="badge badge-green badge-pill">v1.0.0</span>
+    <span class="badge badge-green badge-pill">v1.1.0</span>
     <span class="badge badge-amber badge-pulse">DRAFT</span>
-    <span class="badge badge-purple">SILA — Seamless International Language Automation</span>
+    <span class="badge badge-purple">video-localization-pipeline</span>
   </div>
   <div class="hdr-meta">
-    <span>Date : 2026-03-22</span>
+    <span>Date : 2026-03-23</span>
     <span>Auteur : Comit&eacute; d'architecture (4 experts)</span>
     <span>Licence : &Agrave; d&eacute;finir</span>
   </div>
@@ -321,7 +321,7 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
   <tbody>
   <tr><td>Extraction / remux</td><td>FFmpeg 6+</td><td>LGPL 2.1</td><td>0 (CPU)</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
   <tr><td>S&eacute;paration vocale</td><td>Demucs v4 (htdemucs_ft)</td><td>MIT</td><td>~4 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
-  <tr><td>ASR</td><td>WhisperX (large-v3 + pyannote 3.1)</td><td>BSD-4</td><td>~8 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
+  <tr><td>ASR</td><td>WhisperX (large-v3 + pyannote 3.1). Qwen3-ASR et Voxtral Mini Transcribe V2 &agrave; &eacute;valuer en V2.</td><td>BSD-4</td><td>~8 Go</td><td><span class="status status-locked">&#x2705; Verrouill&eacute;</span></td></tr>
   <tr><td>Traduction</td><td>NLLB-200 3.3B via CTranslate2</td><td>CC-BY-NC 4.0</td><td>~3 Go int8 CPU</td><td><span class="status status-warn">&#x26A0;&#xFE0F; Licence</span></td></tr>
   <tr><td>Traduction (alt.)</td><td>MADLAD-400 via CTranslate2</td><td>Apache 2.0</td><td>~3 Go</td><td><span class="status status-eval">&#x1F504; Si commercial</span></td></tr>
   <tr><td>R&eacute;&eacute;criture (V2)</td><td>Mistral Small 3.2 24B</td><td>Apache 2.0</td><td>~15 Go</td><td><span class="status status-locked">&#x2705; Retenu V2</span></td></tr>
@@ -379,7 +379,8 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
   <tr><td>Orpheus TTS</td><td>Multilingue en "research preview" seulement.</td></tr>
   <tr><td>Fish Speech</td><td>Moins mature que CosyVoice/Qwen3-TTS en cross-lingual.</td></tr>
   <tr><td>SeamlessM4T</td><td>Speech-to-speech. Mauvais outil pour pipeline text-to-text segment&eacute;.</td></tr>
-  <tr><td>Mistral Small 4 (119B MoE)</td><td>242 Go disque, 2+ GPU. Incompatible &lt;24 Go VRAM.</td></tr>
+  <tr><td>Mistral Small 4 (119B MoE)</td><td>242 Go disque, 6B actifs/token. N&eacute;cessite 2+ GPU m&ecirc;me quantifi&eacute;. Incompatible &lt;24 Go VRAM en V1-V2. &Agrave; surveiller V3 si infra multi-GPU. Apache 2.0, reasoning + vision + coding unifi&eacute;.</td></tr>
+  <tr><td>Voxtral Small 24B</td><td>~55 Go VRAM en bf16, n&eacute;cessite 2&times; GPU. Trop lourd pour single 3090/4090. Voxtral Mini/Realtime 4B est le bon candidat (&le;16 Go VRAM).</td></tr>
   <tr><td>vLLM + Llama 3 70B</td><td>Surdimensionn&eacute;. NLLB-200 sup&eacute;rieur en traduction pure et 10&times; plus rapide.</td></tr>
   <tr><td>Triton Inference Server</td><td>Over-engineering V1-V2. vLLM/llama.cpp suffisent.</td></tr>
   <tr><td>RabbitMQ</td><td>Plus complexe que Redis. Celery + Redis suffit en V2.</td></tr>
@@ -609,7 +610,7 @@ utmos_score         : float|null</code></pre>
   <div class="accordion" id="acc-monorepo">
     <div class="accordion-header" onclick="toggleAccordion('acc-monorepo')"><span class="accordion-arrow">&#9654;</span> Voir l'arborescence compl&egrave;te</div>
     <div class="accordion-body">
-      <pre class="diagram"><code>SILA/
+      <pre class="diagram"><code>video-localization-pipeline/
 ├── SILA_Masterplan.md              ← Ce document
 ├── CLAUDE.md                       ← Directives d'implémentation
 ├── pyproject.toml                  ← Config projet Python
@@ -624,7 +625,7 @@ utmos_score         : float|null</code></pre>
 │   │   ├── timing.py               ← Timing optimizer
 │   │   └── models.py               ← Dataclasses / Pydantic
 │   ├── engines/                    ← Moteurs IA (ABC + implémentations)
-│   │   ├── asr/ mt/ tts/ rewrite/ separation/ qc/
+│   │   ├── asr/ (+ voxtral_engine.py [V2]) mt/ tts/ rewrite/ separation/ qc/
 │   └── media/                      ← FFmpeg, rubberband, assembly, mix
 │
 ├── configs/                        ← YAML configs + glossaires
@@ -840,7 +841,7 @@ data/projects/{project_id}/manifest.json</code></pre>
     <div class="timeline-card" style="border-top-color:#3B82F6">
       <div class="timeline-title">"Production interne" &mdash; 3-4 mois</div>
       <div class="timeline-detail">
-        <p>Multi-locuteurs, multi-langues, Demucs v4, r&eacute;&eacute;criture Mistral 24B, Celery + Redis, FastAPI, PostgreSQL, UTMOS, vid&eacute;os 1h+, glossaire.</p>
+        <p>Multi-locuteurs, multi-langues, Demucs v4, benchmark ASR (WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2), r&eacute;&eacute;criture Mistral 24B, Celery + Redis, FastAPI, PostgreSQL, UTMOS, vid&eacute;os 1h+, glossaire.</p>
       </div>
     </div>
     <div class="timeline-card" style="border-top-color:#8B5CF6">
@@ -866,17 +867,24 @@ data/projects/{project_id}/manifest.json</code></pre>
   <tr><td>facebookresearch/demucs</td><td>S&eacute;paration vocale (archiv&eacute;)</td><td>Surveiller forks actifs</td></tr>
   <tr><td>OpenNMT/CTranslate2</td><td>Runtime MT</td><td>Compatibilit&eacute; nouveaux mod&egrave;les</td></tr>
   <tr><td>unslothai/unsloth</td><td>Quantification GGUF</td><td>Nouvelles quants</td></tr>
-  <tr><td>mistralai</td><td>Mod&egrave;les LLM</td><td>Nouvelles versions r&eacute;&eacute;criture</td></tr>
+  <tr><td>mistralai</td><td>&Eacute;cosyst&egrave;me Mistral : LLM (Small 3.x, Small 4, Ministral 3), audio (Voxtral), code (Devstral)</td><td>Nouvelles versions r&eacute;&eacute;criture (LLM) et ASR (Voxtral)</td></tr>
+  <tr><td>mistralai/Voxtral-Mini-4B</td><td>ASR streaming + batch, diarisation native, 13 langues, context biasing, Apache 2.0</td><td>Candidat remplacement WhisperX V2. Benchmark golden set SILA</td></tr>
   </tbody></table></div>
 
   <h3>15.2 Mod&egrave;les &agrave; surveiller</h3>
   <div class="table-wrap"><table class="gtm-table">
   <thead><tr><th>Domaine</th><th>Mod&egrave;le</th><th>Pourquoi</th></tr></thead>
   <tbody>
-  <tr><td>ASR</td><td>Qwen3-ASR</td><td>Nouveau SOTA ASR open-source. Candidat V2.</td></tr>
+  <tr><td>ASR</td><td><strong>Voxtral Mini Transcribe V2</strong> (Mistral)</td><td>Transcription + diarisation + timestamps + context biasing, 4B, Apache 2.0, ~16 Go VRAM. Surpasse Whisper large-v3 sur FLEURS (~4% WER). Candidat prioritaire V2.</td></tr>
+  <tr><td>ASR</td><td><strong>Voxtral Realtime 4B</strong> (Mistral)</td><td>Streaming ASR, latence 200ms-2.4s. Apache 2.0. Pertinent si SILA &eacute;volue vers near-realtime.</td></tr>
+  <tr><td>ASR</td><td>Qwen3-ASR (Alibaba)</td><td>Nouveau SOTA ASR open-source. Candidat V2.</td></tr>
   <tr><td>ASR</td><td>Canary Qwen 2.5B (NVIDIA)</td><td>Top HuggingFace Open ASR leaderboard.</td></tr>
   <tr><td>TTS</td><td>GLM-TTS (Zhipu)</td><td>Reinforcement learning, bonne qualit&eacute; zh/en.</td></tr>
+  <tr><td>TTS</td><td>Orpheus TTS</td><td>Si le multilingue sort de "research preview".</td></tr>
   <tr><td>MT</td><td>MADLAD-400</td><td>Alternative Apache 2.0 &agrave; NLLB.</td></tr>
+  <tr><td>MT</td><td>Open-NLLB</td><td>Effort communautaire poids NLLB licence ouverte.</td></tr>
+  <tr><td>LLM</td><td><strong>Mistral Small 4</strong> (119B MoE, 6B actifs)</td><td>Unifie reasoning + vision + coding. Apache 2.0. Trop lourd V1-V2 (242 Go), pertinent V3. Mars 2026.</td></tr>
+  <tr><td>LLM</td><td>Qwen3.5</td><td>Mod&egrave;les Alibaba derni&egrave;re g&eacute;n&eacute;ration.</td></tr>
   <tr><td>S&eacute;paration</td><td>Bandit v2</td><td>Successeur potentiel de Demucs.</td></tr>
   <tr><td>Lip-sync</td><td>MuseTalk / Hallo2</td><td>Alternatives open-source pour V3.</td></tr>
   </tbody></table></div>
