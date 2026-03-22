@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Données projet (large)
+data/projects/
+models/
+*.wav
+*.mp3
+*.mp4
+*.pt
+*.bin
+*.gguf
+*.safetensors
+
+# Env
+.env
+.env.local
+
+# Logs
+*.log
+logs/

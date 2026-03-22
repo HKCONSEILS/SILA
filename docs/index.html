@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SILA — MASTERPLAN v1.0.0</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a2e;
+  --accent: #2563eb;
+  --accent-light: #dbeafe;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
+  --nav-bg: #f8fafc;
+  --table-stripe: #f8fafc;
+  --max-w: 52rem;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  line-height: 1.7;
+  display: flex;
+  min-height: 100vh;
+}
+/* Sidebar nav */
+nav {
+  position: fixed;
+  top: 0; left: 0;
+  width: 280px;
+  height: 100vh;
+  overflow-y: auto;
+  background: var(--nav-bg);
+  border-right: 1px solid var(--border);
+  padding: 1.5rem 1rem;
+  font-size: 0.85rem;
+  z-index: 10;
+}
+nav .logo {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 0.25rem;
+}
+nav .version {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 1.25rem;
+  display: block;
+}
+nav ol {
+  list-style: none;
+  counter-reset: toc;
+}
+nav ol li { margin-bottom: 0.3rem; }
+nav ol li a {
+  color: var(--fg);
+  text-decoration: none;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  display: block;
+  transition: background 0.15s;
+}
+nav ol li a:hover, nav ol li a.active {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+/* Main content */
+main {
+  margin-left: 280px;
+  width: calc(100% - 280px);
+  max-width: var(--max-w);
+  padding: 2.5rem 2rem 4rem;
+}
+h1 {
+  font-size: 2rem;
+  margin-bottom: 0.25rem;
+  color: var(--accent);
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 0.5rem;
+}
+.meta { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+h2 {
+  font-size: 1.5rem;
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--border);
+}
+h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.75rem; }
+h4 { font-size: 1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+p, ul, ol { margin-bottom: 1rem; }
+ul, ol { padding-left: 1.5rem; }
+li { margin-bottom: 0.3rem; }
+a { color: var(--accent); }
+strong { font-weight: 600; }
+code {
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 0.88em;
+  background: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+  overflow-x: auto;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+pre code { background: none; padding: 0; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+th, td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+}
+th { background: var(--accent-light); font-weight: 600; }
+tr:nth-child(even) { background: var(--table-stripe); }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+blockquote {
+  border-left: 4px solid var(--accent);
+  padding: 0.5rem 1rem;
+  margin: 1rem 0;
+  background: var(--accent-light);
+  border-radius: 0 6px 6px 0;
+}
+/* Mobile */
+@media (max-width: 768px) {
+  nav {
+    position: relative;
+    width: 100%;
+    height: auto;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  body { flex-direction: column; }
+  main { margin-left: 0; width: 100%; padding: 1.5rem 1rem; }
+}
+/* Back to top */
+.top-link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">SILA</div>
+  <span class="version">MASTERPLAN v1.0.0 &mdash; 2026-03-22</span>
+  <ol>
+    <li><a href="#s0">0. Comment utiliser ce document</a></li>
+    <li><a href="#s1">1. Vision et perimetre</a></li>
+    <li><a href="#s2">2. Principes fondateurs</a></li>
+    <li><a href="#s3">3. Stack technologique</a></li>
+    <li><a href="#s4">4. Briques rejetees</a></li>
+    <li><a href="#s5">5. Architecture logicielle</a></li>
+    <li><a href="#s6">6. Workflow &mdash; DAG du pipeline</a></li>
+    <li><a href="#s7">7. Contrats de donnees</a></li>
+    <li><a href="#s8">8. Manifeste central</a></li>
+    <li><a href="#s9">9. Structure du monorepo</a></li>
+    <li><a href="#s10">10. Architecture materielle</a></li>
+    <li><a href="#s11">11. Infrastructure et deploiement</a></li>
+    <li><a href="#s12">12. Gestion d'erreurs et reprise</a></li>
+    <li><a href="#s13">13. KPI et quality gates</a></li>
+    <li><a href="#s14">14. Roadmap V1 / V2 / V3</a></li>
+    <li><a href="#s15">15. Veille technologique</a></li>
+    <li><a href="#s16">16. Risques et mitigations</a></li>
+    <li><a href="#s17">17. Glossaire</a></li>
+    <li><a href="#s18">18. Historique des decisions (ADR)</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<h1 id="top">MASTERPLAN &mdash; Pipeline IA de Traduction &amp; Doublage Video Multilingue</h1>
+<p class="meta">
+  <strong>Nom de code :</strong> SILA &mdash; Seamless International Language Automation<br>
+  <strong>Version :</strong> 1.0.0 &nbsp;|&nbsp; <strong>Date :</strong> 2026-03-22 &nbsp;|&nbsp; <strong>Statut :</strong> Draft<br>
+  <strong>Auteur :</strong> Comite d'architecture (4 experts)
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s0">0. Comment utiliser ce document</h2>
+<p>Ce masterplan est la <strong>source de verite unique</strong> du projet. Toute decision d'architecture, de stack ou de workflow doit y etre referencee ou en etre derivee.</p>
+<p><strong>Regles de gouvernance :</strong></p>
+<ul>
+  <li>Toute modification doit etre versionnee (Git) avec un message de commit explicite.</li>
+  <li>Les decisions verrouillees (marquees &#x2705;) ne peuvent etre modifiees que par une revue explicite du comite.</li>
+  <li>Les sections marquees &#x1F504; sont en evaluation.</li>
+  <li>Document en Markdown pour etre versionne, relu en PR, et annote.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="s1">1. Vision et perimetre</h2>
+
+<h3>1.1 Objectif</h3>
+<p>Construire un pipeline self-hosted, modulaire et industrialisable, capable de prendre en entree une video longue (jusqu'a 1h+), d'en produire des versions doublees dans plusieurs langues cibles, avec une voix clonee coherente, un alignement temporel controle, et un rendu audio credible.</p>
+
+<h3>1.2 Ce que le systeme fait</h3>
+<ul>
+  <li>Extraire l'audio d'une video source.</li>
+  <li>Separer la voix du fond sonore (musique, ambiance, SFX).</li>
+  <li>Transcrire la parole avec timestamps mot-a-mot et identification des locuteurs.</li>
+  <li>Segmenter le contenu parle en unites de traduction/TTS.</li>
+  <li>Traduire chaque segment vers N langues cibles avec contexte et glossaire.</li>
+  <li>Reecrire les traductions trop longues pour respecter le timing original.</li>
+  <li>Cloner la voix et generer l'audio cible par segment et par langue.</li>
+  <li>Ajuster la duree de chaque segment TTS pour respecter le slot temporel source.</li>
+  <li>Mixer l'audio TTS avec le fond sonore, normaliser le loudness.</li>
+  <li>Remuxer l'audio final avec la piste video source (sans reencodage).</li>
+  <li>Exporter un fichier MP4 par langue cible.</li>
+</ul>
+
+<h3>1.3 Ce que le systeme ne fait pas</h3>
+<ul>
+  <li>Temps reel ou streaming live.</li>
+  <li>Traitement video (reencodage, modification des frames).</li>
+  <li>Sous-titrage seul (c'est un sous-produit).</li>
+  <li>Qualite "studio broadcast" universelle.</li>
+  <li>Lip-sync en V1-V2.</li>
+</ul>
+
+<h3>1.4 Cadre par defaut</h3>
+<ul>
+  <li>Self-hosted, local ou infra privee.</li>
+  <li>Videos longues (1h+) comme cas normal.</li>
+  <li>Pipeline relancable, batchable, parallelisable et auditable.</li>
+  <li>Approche realiste et industrialisable.</li>
+  <li>Pas de SaaS manage sauf necessite demontree.</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="s2">2. Principes fondateurs</h2>
+
+<h3>2.1 Principes architecturaux verrouilles</h3>
+<table>
+<tr><th>#</th><th>Principe</th><th>Description</th></tr>
+<tr><td>P1</td><td><strong>Timing contract</strong></td><td>Chaque segment porte un <code>timing_budget_ms</code> des la segmentation.</td></tr>
+<tr><td>P2</td><td><strong>Cascade de duree</strong></td><td>Segmenter &rarr; budget &rarr; traduire &rarr; reecrire si necessaire &rarr; ajuster prosodie TTS &rarr; time-stretch &le;1.25&times;.</td></tr>
+<tr><td>P3</td><td><strong>Tronc commun</strong></td><td>Etapes 1-4 executees une seule fois, quel que soit le nombre de langues cibles.</td></tr>
+<tr><td>P4</td><td><strong>Manifeste central</strong></td><td>Un JSON par projet, source de verite pour l'etat, la reprise, le cache et l'audit.</td></tr>
+<tr><td>P5</td><td><strong>Timebase 48 kHz</strong></td><td>Reference maitre. Downsampling 16 kHz uniquement pour Whisper.</td></tr>
+<tr><td>P6</td><td><strong>Profil voix global</strong></td><td>Embedding moyen sur les 10 meilleurs segments par locuteur.</td></tr>
+<tr><td>P7</td><td><strong>Mapping speaker</strong></td><td><code>speaker_id &rarr; voice_profile &rarr; target_voice_id &rarr; target_lang</code></td></tr>
+<tr><td>P8</td><td><strong>Crossfade 50 ms</strong></td><td>Entre segments TTS finaux. Pas 200-300 ms.</td></tr>
+<tr><td>P9</td><td><strong>Segments 3s-10s</strong></td><td>Duree cible pour le TTS. Hard cap a 12s.</td></tr>
+<tr><td>P10</td><td><strong>Loudness -16 LUFS</strong></td><td>Cible web/streaming, norme EBU R128.</td></tr>
+<tr><td>P11</td><td><strong>Idempotence</strong></td><td>Meme entree + meme config &rarr; skip si sortie valide. Seed fixe pour TTS.</td></tr>
+<tr><td>P12</td><td><strong>Interchangeabilite</strong></td><td>Separer interface de tache et moteur concret. Chaque moteur est swappable.</td></tr>
+<tr><td>P13</td><td><strong>Artefacts immuables</strong></td><td>Chaque sortie est un fichier immuable avec hash. Pas de modification in-place.</td></tr>
+<tr><td>P14</td><td><strong>Video source intouchee</strong></td><td>La piste video n'est jamais reencodee avant le remux final.</td></tr>
+</table>
+
+<h3>2.2 Separations conceptuelles</h3>
+<table>
+<tr><th>Concept A</th><th>&ne;</th><th>Concept B</th></tr>
+<tr><td>Segmentation physique (chunks)</td><td></td><td>Segmentation logique (segments metier)</td></tr>
+<tr><td>Orchestration (etat, DAG, retries)</td><td></td><td>Traitement IA (production de contenu)</td></tr>
+<tr><td>Traitement IA</td><td></td><td>Post-production media</td></tr>
+<tr><td>Interface de tache</td><td></td><td>Moteur concret</td></tr>
+<tr><td>Audio d'analyse (16 kHz)</td><td></td><td>Audio de travail (48 kHz)</td></tr>
+<tr><td>Audio de travail</td><td></td><td>Audio master (mixe, normalise)</td></tr>
+</table>
+
+<h3>2.3 Niveaux de contexte</h3>
+<ol>
+  <li><strong>Narratif</strong> : resume scene/chapitre, sujet global, progression.</li>
+  <li><strong>Locuteur</strong> : registre de langue, identite vocale, style.</li>
+  <li><strong>Terminologique</strong> : glossaire projet, noms propres, acronymes.</li>
+</ol>
+
+<!-- ================================================================ -->
+<h2 id="s3">3. Stack technologique verrouillée</h2>
+
+<h3>3.1 Briques retenues</h3>
+<table>
+<tr><th>Fonction</th><th>Brique</th><th>Licence</th><th>VRAM</th><th>Statut</th></tr>
+<tr><td>Extraction / remux</td><td>FFmpeg 6+</td><td>LGPL 2.1</td><td>0 (CPU)</td><td>&#x2705;</td></tr>
+<tr><td>Separation vocale</td><td>Demucs v4 (htdemucs_ft)</td><td>MIT</td><td>~4 Go</td><td>&#x2705;</td></tr>
+<tr><td>ASR</td><td>WhisperX (large-v3 + pyannote 3.1)</td><td>BSD-4</td><td>~8 Go</td><td>&#x2705;</td></tr>
+<tr><td>Traduction</td><td>NLLB-200 3.3B via CTranslate2</td><td>CC-BY-NC 4.0</td><td>~3 Go (int8 CPU)</td><td>&#x2705;</td></tr>
+<tr><td>Traduction (alt.)</td><td>MADLAD-400 via CTranslate2</td><td>Apache 2.0</td><td>~3 Go</td><td>&#x1F504;</td></tr>
+<tr><td>Reecriture (V2)</td><td>Mistral Small 3.2 24B</td><td>Apache 2.0</td><td>~15 Go</td><td>&#x2705;</td></tr>
+<tr><td>TTS principal</td><td>CosyVoice 3.0 (0.5B)</td><td>Apache 2.0</td><td>~4 Go</td><td>&#x2705;</td></tr>
+<tr><td>TTS alternatif</td><td>Qwen3-TTS 1.7B</td><td>Apache 2.0</td><td>~6 Go</td><td>&#x2705;</td></tr>
+<tr><td>Time-stretching</td><td>pyrubberband</td><td>MIT</td><td>0 (CPU)</td><td>&#x2705;</td></tr>
+<tr><td>Loudness</td><td>FFmpeg loudnorm (EBU R128)</td><td>&mdash;</td><td>0 (CPU)</td><td>&#x2705;</td></tr>
+<tr><td>Orchestration</td><td>Script seq. (V1), Celery (V2), Temporal (V3)</td><td>BSD/MIT</td><td>0</td><td>&#x2705;</td></tr>
+<tr><td>Qualite audio</td><td>UTMOS</td><td>&mdash;</td><td>~1 Go</td><td>&#x2705;</td></tr>
+<tr><td>Base de donnees</td><td>JSON (V1), PostgreSQL 16 (V2+)</td><td>PostgreSQL Lic.</td><td>0</td><td>&#x2705;</td></tr>
+</table>
+
+<h3>3.2 Note licence NLLB-200</h3>
+<p>Les poids NLLB-200 sont sous <strong>CC-BY-NC 4.0</strong> (non-commercial). Pour usage commercial, basculer vers <strong>MADLAD-400</strong> (Apache 2.0).</p>
+
+<h3>3.3 Detail des briques TTS</h3>
+<h4>CosyVoice 3.0 (principal)</h4>
+<ul>
+  <li><strong>Modele</strong> : Fun-CosyVoice3-0.5B-2512</li>
+  <li><strong>Langues</strong> : 9 (zh, en, ja, ko, de, es, fr, it, ru) + 18 dialectes chinois</li>
+  <li><strong>Features</strong> : Zero-shot cross-lingual cloning, pronunciation inpainting, instruction-based control, streaming</li>
+  <li><strong>Sample rate</strong> : 22.05 kHz interne &rarr; resample 48 kHz en sortie</li>
+</ul>
+
+<h4>Qwen3-TTS (alternatif)</h4>
+<ul>
+  <li><strong>Modele</strong> : Qwen3-TTS-12Hz-1.7B-Base + CustomVoice</li>
+  <li><strong>Langues</strong> : 10 (zh, en, ja, ko, de, fr, ru, pt, es, it)</li>
+  <li><strong>Features</strong> : Clonage 3s de reference, voice design textuel, generation longue</li>
+</ul>
+
+<!-- ================================================================ -->
+<h2 id="s4">4. Briques explicitement rejetees</h2>
+<table>
+<tr><th>Brique</th><th>Raison du rejet</th></tr>
+<tr><td>XTTS v2 (Coqui)</td><td>Licence CPML non-commercial. Coqui ferme.</td></tr>
+<tr><td>Wav2Lip</td><td>Licence non-commerciale. Date (2020). Qualite insuffisante.</td></tr>
+<tr><td>M2M100</td><td>Remplace par NLLB-200 (superieur sur toutes les paires).</td></tr>
+<tr><td>SeamlessM4T</td><td>Speech-to-speech. Mauvais outil pour pipeline text-to-text segmente.</td></tr>
+<tr><td>Mistral Small 4 (119B)</td><td>242 Go disque, necessite 2+ GPU. Incompatible &lt;24 Go VRAM.</td></tr>
+<tr><td>Kubernetes V1-V2</td><td>Over-engineering. Docker Compose suffit.</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s5">5. Architecture logicielle</h2>
+
+<h3>5.1 Vue d'ensemble par version</h3>
+<h4>V1 &mdash; Script sequentiel</h4>
+<pre><code>CLI (Python)
+  &boxur;&horbar; Pipeline sequentiel
+        &boxvr;&horbar; extract_audio()
+        &boxvr;&horbar; transcribe()        &rarr; WhisperX
+        &boxvr;&horbar; segment()           &rarr; Regles metier Python
+        &boxvr;&horbar; translate()         &rarr; NLLB-200 via CTranslate2
+        &boxvr;&horbar; generate_tts()      &rarr; CosyVoice 3.0
+        &boxvr;&horbar; adjust_timing()     &rarr; pyrubberband
+        &boxvr;&horbar; assemble_audio()    &rarr; FFmpeg
+        &boxvr;&horbar; normalize()         &rarr; FFmpeg loudnorm
+        &boxur;&horbar; export()            &rarr; FFmpeg remux
+  &boxur;&horbar; Manifeste JSON
+  &boxur;&horbar; Filesystem local</code></pre>
+
+<h3>5.2 Frontieres entre domaines</h3>
+<table>
+<tr><th>Domaine</th><th>Responsabilite</th><th>Ne touche JAMAIS a</th></tr>
+<tr><td><strong>Orchestration</strong></td><td>Etat global, DAG, retries, timeouts</td><td>Fichiers audio/video directement</td></tr>
+<tr><td><strong>Traitement IA</strong></td><td>ASR, diarisation, traduction, TTS</td><td>Etat global du run</td></tr>
+<tr><td><strong>Post-production media</strong></td><td>Timeline, placement, loudness, mix, remux</td><td>Logique metier</td></tr>
+</table>
+
+<h3>5.3 Interfaces de tache (contrats)</h3>
+<pre><code>ASR_Interface:
+  input:  audio_path (WAV 16kHz mono)
+  output: TranscriptResult { words[], speakers[], language }
+
+MT_Interface:
+  input:  text, source_lang, target_lang, context[], glossary{}
+  output: TranslationResult { text, estimated_chars, confidence }
+
+TTS_Interface:
+  input:  text, voice_profile, target_lang, target_duration_ms, seed
+  output: TTSResult { audio_path, duration_ms, sample_rate }</code></pre>
+
+<!-- ================================================================ -->
+<h2 id="s6">6. Workflow detaille &mdash; DAG du pipeline</h2>
+
+<h3>6.1 Vue d'ensemble du DAG</h3>
+<pre><code>Phase 0: INGEST
+  &boxur;&horbar; Creer projet, uploader video, ffprobe, ecrire manifeste initial
+
+Phase 1: EXTRACTION (sequentiel, une seule fois)
+  &boxvr;&horbar; 1.1  FFmpeg &rarr; audio source WAV 48kHz mono
+  &boxur;&horbar; 1.2  FFmpeg &rarr; metadonnees video
+
+Phase 2: SEPARATION VOCALE [V2+]
+  &boxur;&horbar; 2.1  Demucs v4 &rarr; stems : voice.wav, music.wav, sfx.wav
+
+Phase 3: ANALYSE SPEECH (sequentiel, une seule fois)
+  &boxvr;&horbar; 3.1  WhisperX ASR &rarr; transcript brut
+  &boxvr;&horbar; 3.2  Alignement mot-a-mot (wav2vec2)
+  &boxur;&horbar; 3.3  Diarisation (pyannote 3.1) [V2+]
+
+Phase 4: SEGMENTATION LOGIQUE
+  &boxvr;&horbar; 4.1  Reconciliation transcript
+  &boxvr;&horbar; 4.2  Attribution speaker IDs
+  &boxvr;&horbar; 4.3  Segmentation metier (regles &sect;6.2)
+  &boxur;&horbar; 4.4  Attribution timing_budget_ms
+
+  ========== FAN-OUT : &times; N langues cibles ==========
+
+Phase 6: TRADUCTION (parallele par langue)
+  &boxvr;&horbar; 6.1  Traduire segment par segment (fenetre glissante)
+  &boxvr;&horbar; 6.2  Injecter glossaire + contexte
+  &boxur;&horbar; 6.3  Estimer duree &rarr; classer timing fit
+
+Phase 8: TTS / VOICE CLONING (parallele par segment &times; langue)
+  &boxvr;&horbar; 8.1  Generer audio TTS
+  &boxvr;&horbar; 8.2  Mesurer duree reelle
+  &boxvr;&horbar; 8.3  Time-stretch &le;1.25&times; si necessaire
+  &boxur;&horbar; 8.4  Si stretch &gt; 1.25&times; &rarr; review_required
+
+Phase 9: ASSEMBLY AUDIO (sequentiel par langue)
+  &boxvr;&horbar; 9.1  Placer segments sur la timeline
+  &boxvr;&horbar; 9.2  Crossfade 50ms inter-segments
+  &boxur;&horbar; 9.5  Normalisation loudness -16 LUFS
+
+Phase 10: QC AUTOMATIQUE
+  &boxvr;&horbar; 10.1  Verifier trous de timeline
+  &boxvr;&horbar; 10.2  Verifier clipping, true peak, loudness
+  &boxvr;&horbar; 10.3  Verifier timing fit par segment
+  &boxur;&horbar; 10.5  Tagger segments problematiques
+
+Phase 11: EXPORT (parallele par langue)
+  &boxvr;&horbar; 11.1  FFmpeg remux (video copy + audio AAC)
+  &boxvr;&horbar; 11.2  Generer SRT/VTT
+  &boxur;&horbar; 11.3  Generer rapport QC JSON</code></pre>
+
+<h3>6.2 Regles de segmentation logique</h3>
+<table>
+<tr><th>#</th><th>Regle</th><th>Detail</th></tr>
+<tr><td>S1</td><td>Pas de melange de locuteurs</td><td>Un segment = un seul <code>speaker_id</code></td></tr>
+<tr><td>S2</td><td>Couper sur pause + ponctuation</td><td>Pause &gt; 400ms + ponctuation forte (. ? !)</td></tr>
+<tr><td>S3</td><td>Duree nominale 4-8s</td><td>Coeur de distribution vise</td></tr>
+<tr><td>S4</td><td>Hard cap 10s</td><td>Au-dela, forcer coupe sur ponctuation faible ou pause &gt; 200ms</td></tr>
+<tr><td>S5</td><td>Minimum 3s</td><td>En dessous, fusionner avec segment adjacent</td></tr>
+<tr><td>S6</td><td>Seuil adaptatif</td><td>Si contenu dense, reduire le seuil a 300ms</td></tr>
+<tr><td>S7</td><td>Overlaps</td><td>Flag <code>overlap: true</code>, traitement dedie</td></tr>
+<tr><td>S8</td><td>Contexte conserve</td><td><code>context_left</code> (2-3 seg.) + <code>context_right</code> (1-2 seg.)</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s7">7. Contrats de donnees</h2>
+
+<h3>7.1 Transcript canonique (sortie Phase 3)</h3>
+<pre><code>word_id         : int       &mdash; identifiant unique du mot
+chunk_id        : int       &mdash; chunk technique d'origine
+speaker_id      : str       &mdash; "spk_0", "spk_1", ...
+source_lang     : str       &mdash; code ISO 639-1
+start_ms        : int       &mdash; debut en ms
+end_ms          : int       &mdash; fin en ms
+text            : str       &mdash; le mot transcrit
+confidence      : float     &mdash; 0.0 a 1.0
+is_overlap      : bool
+sentence_id     : int</code></pre>
+
+<h3>7.2 Segments logiques (sortie Phase 4)</h3>
+<pre><code>segment_id          : str       &mdash; "seg_0001"
+speaker_id          : str
+start_ms            : int
+end_ms              : int
+duration_ms         : int
+timing_budget_ms    : int
+source_text         : str
+source_lang         : str
+context_left        : str
+context_right       : str
+segment_type        : str       &mdash; "speech" | "overlap" | "silence" | "music"
+words               : list
+review_flags        : list</code></pre>
+
+<h3>7.3 Traductions (sortie Phase 6)</h3>
+<pre><code>segment_id          : str
+target_lang         : str
+translated_text     : str
+timing_fit_status   : str   &mdash; "fit_ok" | "rewrite_needed" | "review_required"
+compression_ratio   : float
+mt_engine           : str</code></pre>
+
+<h3>7.4 Sorties TTS (sortie Phase 8)</h3>
+<pre><code>segment_id          : str
+target_lang         : str
+audio_uri           : str
+duration_ms         : int
+timing_budget_ms    : int
+timing_delta_ms     : int
+stretch_applied     : bool
+stretch_ratio       : float
+seed                : int</code></pre>
+
+<!-- ================================================================ -->
+<h2 id="s8">8. Manifeste central</h2>
+
+<h3>8.1 Principes</h3>
+<ul>
+  <li><strong>V1</strong> : fichier JSON local. Nommage : <code>{project_id}/manifest.json</code>.</li>
+  <li>Versionne : chaque mise a jour incremente <code>manifest_version</code>.</li>
+  <li>Nommage deterministe : <code>{project_id}/{stage}/{lang}/seg_{index:04d}.wav</code>.</li>
+</ul>
+
+<h3>8.2 Structure du manifeste V1</h3>
+<pre><code>{
+  "manifest_version": 1,
+  "pipeline_version": "0.1.0",
+  "created_at": "2026-03-22T14:30:00Z",
+  "updated_at": "...",
+
+  "project": {
+    "project_id": "proj_20260322_001",
+    "status": "processing",
+    "source_video": "data/projects/.../source/input.mp4",
+    "source_lang": "fr",
+    "target_langs": ["en"],
+    "duration_ms": 600000
+  },
+
+  "source_metadata": {
+    "fps": 29.97, "resolution": "1920x1080",
+    "codec_video": "h264", "codec_audio": "aac",
+    "sample_rate": 48000, "chapters": []
+  },
+
+  "config": { ... },
+  "speakers": { ... },
+  "stages": { ... },
+  "segments": [ ... ],
+  "outputs": { ... },
+  "metrics": { ... }
+}</code></pre>
+
+<!-- ================================================================ -->
+<h2 id="s9">9. Structure du monorepo</h2>
+<pre><code>SILA/
+&boxvr;&horbar; README.md
+&boxvr;&horbar; MASTERPLAN.md
+&boxvr;&horbar; pyproject.toml
+&boxvr;&horbar; Makefile
+&boxvr;&horbar; src/
+&boxv;   &boxvr;&horbar; cli/main.py              &larr; Point d'entree CLI
+&boxv;   &boxvr;&horbar; pipeline/                &larr; Orchestration (runner, dag, stages)
+&boxv;   &boxvr;&horbar; core/                    &larr; Logique metier pure
+&boxv;   &boxv;   &boxvr;&horbar; manifest.py          &larr; Lecture/ecriture manifeste
+&boxv;   &boxv;   &boxvr;&horbar; segment.py           &larr; Segmentation logique
+&boxv;   &boxv;   &boxvr;&horbar; timing.py            &larr; Timing optimizer
+&boxv;   &boxv;   &boxur;&horbar; models.py            &larr; Dataclasses / Pydantic
+&boxv;   &boxvr;&horbar; engines/                 &larr; Moteurs IA (ABC + implem.)
+&boxv;   &boxv;   &boxvr;&horbar; asr/ mt/ tts/ rewrite/ separation/ qc/
+&boxv;   &boxur;&horbar; media/                   &larr; FFmpeg, rubberband, assembly, mix
+&boxvr;&horbar; configs/                     &larr; YAML configs + glossaires
+&boxvr;&horbar; data/projects/               &larr; Donnees (gitignored)
+&boxvr;&horbar; models/                      &larr; Poids modeles (gitignored)
+&boxvr;&horbar; tests/ (unit, integration, e2e, regression)
+&boxvr;&horbar; scripts/
+&boxvr;&horbar; docker/
+&boxur;&horbar; docs/</code></pre>
+
+<!-- ================================================================ -->
+<h2 id="s10">10. Architecture materielle</h2>
+
+<h3>10.1 Profils GPU</h3>
+<table>
+<tr><th>Profil</th><th>Hardware</th><th>Usage</th></tr>
+<tr><td>Minimum (V1)</td><td>1&times; RTX 4090 (24 Go)</td><td>WhisperX + CosyVoice seq.</td></tr>
+<tr><td>Recommande (V2)</td><td>2&times; RTX 4090 ou 1&times; A6000</td><td>ASR GPU0 + TTS batch GPU1</td></tr>
+<tr><td>Production (V3)</td><td>2-4&times; RTX 4090</td><td>Parallelisme complet</td></tr>
+</table>
+
+<h3>10.2 Budget VRAM par etape</h3>
+<table>
+<tr><th>Etape</th><th>Modele</th><th>VRAM</th></tr>
+<tr><td>Demucs v4</td><td>htdemucs_ft</td><td>~4 Go</td></tr>
+<tr><td>WhisperX</td><td>large-v3 + pyannote</td><td>~8 Go</td></tr>
+<tr><td>NLLB-200</td><td>3.3B int8 CPU</td><td>0 GPU / ~6 Go RAM</td></tr>
+<tr><td>CosyVoice 3.0</td><td>0.5B</td><td>~4 Go</td></tr>
+<tr><td>Mistral Small 3.2</td><td>24B Q4_K_M</td><td>~15 Go</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s11">11. Infrastructure et deploiement</h2>
+
+<h3>11.1 Docker Compose V1</h3>
+<p>Container unique avec GPU, CLI Python. Volume mounts pour <code>data/</code>, <code>models/</code>, <code>configs/</code>.</p>
+
+<h3>11.3 Conventions de nommage</h3>
+<pre><code>data/projects/{project_id}/source/input.mp4
+data/projects/{project_id}/extracted/audio_48k.wav
+data/projects/{project_id}/asr/transcript.json
+data/projects/{project_id}/tts/{lang}/seg_{index:04d}.wav
+data/projects/{project_id}/tts/{lang}/seg_{index:04d}_adj.wav
+data/projects/{project_id}/mix/{lang}/mix_final.wav
+data/projects/{project_id}/exports/output_{lang}.mp4
+data/projects/{project_id}/exports/{lang}.srt
+data/projects/{project_id}/manifest.json</code></pre>
+<p><strong>Regles</strong> : nommage deterministe, index 4 chiffres paddes, suffixe <code>_adj</code> pour post-stretch.</p>
+
+<!-- ================================================================ -->
+<h2 id="s12">12. Gestion d'erreurs et reprise</h2>
+
+<h3>12.1 Cle d'idempotence</h3>
+<pre><code>idempotency_key = sha256(
+  project_id + stage_name + target_lang +
+  segment_id + model_name + model_version +
+  params_hash + input_artifact_hash
+)</code></pre>
+
+<h3>12.2 Politique de retry</h3>
+<table>
+<tr><th>Cas</th><th>Action</th></tr>
+<tr><td>OOM GPU, timeout, erreur stockage</td><td>Retry 3&times; backoff exponentiel (2s, 8s, 32s)</td></tr>
+<tr><td>Timing impossible (stretch &gt; 1.25&times;)</td><td>Flag <code>review_required</code>, garder le segment a 1.25&times;</td></tr>
+<tr><td>3 echecs consecutifs</td><td>Dead letter &rarr; statut <code>failed</code></td></tr>
+</table>
+
+<h3>12.3 Granularite de relance (V1)</h3>
+<pre><code>--retry segment seg_0042 --lang en
+--retry failed --lang en
+--retry from-stage translate --lang en
+--retry stage assembly --lang en</code></pre>
+
+<!-- ================================================================ -->
+<h2 id="s13">13. KPI et quality gates</h2>
+
+<h3>13.1 KPI de performance</h3>
+<table>
+<tr><th>Metrique</th><th>Cible V1</th><th>Cible V2</th></tr>
+<tr><td>Ratio temps / duree video</td><td>&lt; 10&times;</td><td>&lt; 5&times;</td></tr>
+<tr><td>Taux d'echec segment</td><td>&lt; 5%</td><td>&lt; 1%</td></tr>
+</table>
+
+<h3>13.2 KPI de qualite audio</h3>
+<table>
+<tr><th>Metrique</th><th>Cible V1</th><th>Cible V2</th></tr>
+<tr><td>MOS estime (UTMOS)</td><td>&gt; 3.5/5</td><td>&gt; 3.8/5</td></tr>
+<tr><td>Segments dans le slot &plusmn;15%</td><td>&gt; 85%</td><td>&gt; 90%</td></tr>
+<tr><td>Drift temporel moyen</td><td>&lt; 200 ms</td><td>&lt; 100 ms</td></tr>
+<tr><td>Loudness final</td><td>-16 &plusmn; 1 LUFS</td><td>-16 &plusmn; 0.5 LUFS</td></tr>
+</table>
+
+<h3>13.4 Quality gates</h3>
+<table>
+<tr><th>Gate</th><th>Condition</th><th>Consequence</th></tr>
+<tr><td>Post-ASR</td><td>WER &lt; 10% sur golden set</td><td>Ne pas poursuivre</td></tr>
+<tr><td>Pre-export</td><td>100% segments completed</td><td>Bloquer si &gt; 5% failed</td></tr>
+<tr><td>Post-export</td><td>Loudness -16 &plusmn; 1 LUFS</td><td>Re-normalisation</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s14">14. Roadmap V1 / V2 / V3</h2>
+
+<h3>14.1 V1 &mdash; "Proof of Value" (6-8 semaines)</h3>
+<p><strong>Objectif</strong> : produire un doublage ecoutable de bout en bout sur une video courte.</p>
+<table>
+<tr><th>Inclus</th><th>Exclu</th></tr>
+<tr><td>CLI Python</td><td>API REST</td></tr>
+<tr><td>Video &le; 10 min</td><td>Videos &gt; 10 min</td></tr>
+<tr><td>1 locuteur unique</td><td>Multi-locuteurs</td></tr>
+<tr><td>1 langue cible</td><td>Multi-langues paralleles</td></tr>
+<tr><td>CosyVoice 3.0</td><td>Qwen3-TTS</td></tr>
+<tr><td>Manifeste JSON fichier</td><td>PostgreSQL</td></tr>
+<tr><td>Script sequentiel</td><td>Celery / Redis</td></tr>
+<tr><td>Reprise par etape</td><td>Reprise par segment individuel</td></tr>
+</table>
+
+<h3>14.2 V2 &mdash; "Production interne"</h3>
+<p>Multi-locuteurs, multi-langues, Demucs v4, reecriture LLM, Celery + Redis, FastAPI, PostgreSQL, UTMOS, videos longues 1h+.</p>
+
+<h3>14.3 V3 &mdash; "Produit"</h3>
+<p>UI review, lip-sync conditionnel, detection emotions, Temporal, S3/MinIO, monitoring Prometheus + Grafana.</p>
+
+<!-- ================================================================ -->
+<h2 id="s15">15. Veille technologique</h2>
+<p>Repos a suivre : CosyVoice, Qwen3-TTS, WhisperX, BetterWhisperX, Demucs, CTranslate2, Unsloth, Mistral.</p>
+<p>Modeles a surveiller : Qwen3-ASR, Canary Qwen 2.5B, GLM-TTS, MADLAD-400, Bandit v2, MuseTalk/Hallo2.</p>
+
+<!-- ================================================================ -->
+<h2 id="s16">16. Risques et mitigations</h2>
+<table>
+<tr><th>#</th><th>Risque</th><th>Prob.</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>R1</td><td>Licence NLLB-200</td><td>Haute</td><td>Bloquant</td><td>MADLAD-400 en fallback</td></tr>
+<tr><td>R2</td><td>TTS goulot</td><td>Certaine</td><td>Fort</td><td>Multi-GPU, TensorRT-LLM</td></tr>
+<tr><td>R7</td><td>Timing casse</td><td>Moyenne</td><td>Fort</td><td>Quality gate post-TTS</td></tr>
+<tr><td>R9</td><td>Over-engineering V1</td><td>Moyenne</td><td>Fatal</td><td>Respecter scope V1</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s17">17. Glossaire</h2>
+<table>
+<tr><th>Terme</th><th>Definition</th></tr>
+<tr><td>Timing contract</td><td>Engagement de duree maximale d'un segment, fixe des la segmentation.</td></tr>
+<tr><td>Cascade de duree</td><td>Strategie multi-etapes pour respecter le timing.</td></tr>
+<tr><td>Tronc commun</td><td>Etapes executees une seule fois quel que soit le nombre de langues.</td></tr>
+<tr><td>Segment logique</td><td>Unite de traduction/TTS (3-10s, mono-speaker).</td></tr>
+<tr><td>Stem</td><td>Piste audio separee produite par Demucs.</td></tr>
+<tr><td>Golden set</td><td>Videos de reference pour benchmarks.</td></tr>
+<tr><td>Quality gate</td><td>Condition a remplir avant l'etape suivante.</td></tr>
+<tr><td>Dead letter</td><td>Segment ayant echoue 3&times; &rarr; quarantaine.</td></tr>
+<tr><td>Fan-out</td><td>Point du DAG ou le pipeline se ramifie en N branches.</td></tr>
+<tr><td>LUFS</td><td>Loudness Units relative to Full Scale.</td></tr>
+<tr><td>UTMOS</td><td>Estimateur automatique de MOS.</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s18">18. Historique des decisions (ADR)</h2>
+
+<h4>ADR-001 : CosyVoice 3.0 plutot que XTTS v2</h4>
+<p>CosyVoice 3.0 (Apache 2.0) retenu pour le TTS multilingue avec voice cloning. XTTS v2 rejete (CPML non-commercial, Coqui ferme).</p>
+
+<h4>ADR-002 : NLLB-200 avec risque licence identifie</h4>
+<p>NLLB-200 3.3B retenu en V1 (usage interne). MADLAD-400 prepare comme alternative pour usage commercial.</p>
+
+<h4>ADR-003 : Celery + Redis plutot que Temporal en V1-V2</h4>
+<p>V1 = script sequentiel. V2 = Celery + Redis. V3 = Temporal. Complexite operationnelle minimale au demarrage.</p>
+
+<h4>ADR-004 : Mistral Small 3.2 24B pour la reecriture</h4>
+<p>Mistral Small 3.2 24B (Q4_K_M, ~15 Go VRAM) retenu pour V2. Fallback Ministral 3 8B (~5 Go) si cohabitation VRAM.</p>
+
+<h4>ADR-005 : Pas de Demucs en V1</h4>
+<p>V1 cible contenus voix-only (podcasts, cours). Demucs ajoute en V2.</p>
+
+<hr>
+<p><em>Fin du masterplan. Ce document est versionne et fait autorite sur toutes les decisions du projet.</em></p>
+<a href="#top" class="top-link">&uarr; Retour en haut</a>
+
+</main>
+
+</body>
+</html>
