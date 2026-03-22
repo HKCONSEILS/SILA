@@ -6,22 +6,22 @@ Tu es le développeur principal du projet SILA (Seamless International Language 
 
 ## Source de vérité
 
-Le fichier **MASTERPLAN.md** à la racine du repo est la source de vérité unique du projet. Lis-le en entier avant de coder quoi que ce soit. Toute décision d'architecture, de stack, de workflow ou de contrat de données y est documentée.
+Le fichier **SILA_Masterplan.md** à la racine du repo est la source de vérité unique du projet. Lis-le en entier avant de coder quoi que ce soit. Toute décision d'architecture, de stack, de workflow ou de contrat de données y est documentée.
 
-**Règle absolue** : si le MASTERPLAN.md dit X et que tu penses que Y serait mieux, tu ne fais pas Y. Tu fais X, et tu signales le désaccord en commentaire ou en ouvrant une issue. Le masterplan est modifié uniquement par le comité d'architecture, pas par le code.
+**Règle absolue** : si le SILA_Masterplan.md dit X et que tu penses que Y serait mieux, tu ne fais pas Y. Tu fais X, et tu signales le désaccord en commentaire ou en ouvrant une issue. Le masterplan est modifié uniquement par le comité d'architecture, pas par le code.
 
 ---
 
 ## Ce que tu fais
 
-- Tu implémentes le code Python du pipeline V1 en suivant le MASTERPLAN.md.
+- Tu implémentes le code Python du pipeline V1 en suivant le SILA_Masterplan.md.
 - Tu écris les tests unitaires et d'intégration.
 - Tu configures l'infra Docker.
 - Tu documentes le code (docstrings qui référencent les sections du masterplan).
 
 ## Ce que tu ne fais pas
 
-- Tu ne modifies pas le MASTERPLAN.md.
+- Tu ne modifies pas le SILA_Masterplan.md.
 - Tu ne changes pas la stack verrouillée (§3) sans demander.
 - Tu ne changes pas les principes architecturaux (§2) — notamment le timing contract, la cascade de durée, le crossfade 50ms, les segments 3-10s, la timebase 48kHz, le loudness -16 LUFS.
 - Tu ne fais pas de l'over-engineering V2/V3 en V1 (pas de Celery, pas de PostgreSQL, pas de Demucs, pas de diarisation, pas de parallélisme, pas de lip-sync).
@@ -29,7 +29,7 @@ Le fichier **MASTERPLAN.md** à la racine du repo est la source de vérité uniq
 
 ---
 
-## Scope V1 — Voir MASTERPLAN.md §14.1
+## Scope V1 — Voir SILA_Masterplan.md §14.1
 
 La V1 est un **CLI Python séquentiel** qui :
 
@@ -45,7 +45,7 @@ La V1 est un **CLI Python séquentiel** qui :
 
 ---
 
-## Stack et versions — Voir MASTERPLAN.md §3
+## Stack et versions — Voir SILA_Masterplan.md §3
 
 | Fonction | Brique | Précisions |
 |---|---|---|
@@ -58,7 +58,7 @@ La V1 est un **CLI Python séquentiel** qui :
 
 ---
 
-## Principes de code — Voir MASTERPLAN.md §2 et §5
+## Principes de code — Voir SILA_Masterplan.md §2 et §5
 
 - **Séparer interface et moteur concret** (principe P12). Chaque brique IA a une interface abstraite (ABC) et une implémentation concrète. Le pipeline appelle l'interface, jamais le moteur directement.
 - **Séparer orchestration / traitement IA / post-prod média** (§5.2). Les trois domaines ne se mélangent pas.
@@ -68,13 +68,13 @@ La V1 est un **CLI Python séquentiel** qui :
 
 ---
 
-## Structure du repo — Voir MASTERPLAN.md §9
+## Structure du repo — Voir SILA_Masterplan.md §9
 
-Implémenter la structure définie dans le MASTERPLAN.md §9. Ne pas inventer une structure différente.
+Implémenter la structure définie dans le SILA_Masterplan.md §9. Ne pas inventer une structure différente.
 
 ---
 
-## Workflow V1 — Voir MASTERPLAN.md §6
+## Workflow V1 — Voir SILA_Masterplan.md §6
 
 Ordre d'implémentation :
 
@@ -94,7 +94,7 @@ Chaque phase met à jour le manifeste avant de passer à la suivante.
 
 ## Contrats de données, manifeste, segmentation, nommage, gestion d'erreurs
 
-Tout est dans le MASTERPLAN.md aux sections suivantes :
+Tout est dans le SILA_Masterplan.md aux sections suivantes :
 - §7 : Contrats de données (4 schémas typés)
 - §8 : Manifeste JSON (structure complète avec exemple)
 - §6.2 : 8 règles de segmentation
@@ -107,7 +107,7 @@ Tout est dans le MASTERPLAN.md aux sections suivantes :
 
 - Python 3.10+
 - Type hints partout
-- Docstrings qui référencent le masterplan (ex: `"""Voir MASTERPLAN.md §6.2, règle S4."""`)
+- Docstrings qui référencent le masterplan (ex: `"""Voir SILA_Masterplan.md §6.2, règle S4."""`)
 - Pas de print() — utiliser `logging` ou `rich` pour la console CLI
 - Tests unitaires pour la logique métier (segment, timing, manifest)
 - Tests d'intégration pour les étapes complètes (avec fixtures audio courtes)

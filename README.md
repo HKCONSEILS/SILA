@@ -7,7 +7,7 @@ Pipeline IA self-hosted de traduction et doublage vidéo multilingue.
 
 ## Documentation
 
-Le **[MASTERPLAN.md](./MASTERPLAN.md)** est la source de vérité unique du projet.
+Le **[SILA_Masterplan.md](./SILA_Masterplan.md)** est la source de vérité unique du projet.
 
 Le **[CLAUDE.md](./CLAUDE.md)** contient les directives d'implémentation.
 
