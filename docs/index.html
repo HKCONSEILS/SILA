@@ -5,39 +5,133 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SILA — MASTERPLAN v1.0.0</title>
 <style>
+/* --- CSS Variables : theme light (defaut) --- */
 :root {
-  --bg: #ffffff;
-  --fg: #1a1a2e;
-  --accent: #2563eb;
-  --accent-light: #dbeafe;
-  --border: #e2e8f0;
-  --code-bg: #f1f5f9;
-  --nav-bg: #f8fafc;
-  --table-stripe: #f8fafc;
-  --max-w: 52rem;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #e8eaed;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-heading: #0d1117;
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --border: #d0d7de;
+  --border-light: #e8eaed;
+  --code-bg: #f0f2f4;
+  --code-text: #1f2328;
+  --table-header-bg: #f0f2f4;
+  --table-row-alt: #f6f8fa;
+  --table-border: #d0d7de;
+  --blockquote-border: #d0d7de;
+  --blockquote-text: #656d76;
+  --toggle-bg: #e8eaed;
+  --shadow: rgba(0, 0, 0, 0.08);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; font-size: 16px; }
+/* --- CSS Variables : theme dark --- */
+[data-theme="dark"] {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-heading: #f0f6fc;
+  --accent: #58a6ff;
+  --accent-hover: #79c0ff;
+  --border: #30363d;
+  --border-light: #21262d;
+  --code-bg: #161b22;
+  --code-text: #e6edf3;
+  --table-header-bg: #161b22;
+  --table-row-alt: #0d1117;
+  --table-border: #30363d;
+  --blockquote-border: #30363d;
+  --blockquote-text: #8b949e;
+  --toggle-bg: #30363d;
+  --shadow: rgba(0, 0, 0, 0.3);
+}
+/* --- Detection automatique du theme OS --- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-heading: #f0f6fc;
+    --accent: #58a6ff;
+    --accent-hover: #79c0ff;
+    --border: #30363d;
+    --border-light: #21262d;
+    --code-bg: #161b22;
+    --code-text: #e6edf3;
+    --table-header-bg: #161b22;
+    --table-row-alt: #0d1117;
+    --table-border: #30363d;
+    --blockquote-border: #30363d;
+    --blockquote-text: #8b949e;
+    --toggle-bg: #30363d;
+    --shadow: rgba(0, 0, 0, 0.3);
+  }
+}
+/* --- Base --- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  color: var(--fg);
-  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-size: 16px;
   line-height: 1.7;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
   display: flex;
   min-height: 100vh;
 }
-/* Sidebar nav */
+/* --- Toggle bouton --- */
+.theme-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--toggle-bg);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  z-index: 1000;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.theme-toggle:hover { border-color: var(--accent); }
+.theme-toggle .icon-sun,
+.theme-toggle .icon-moon {
+  position: absolute;
+  transition: opacity 0.2s ease;
+}
+.theme-toggle .icon-moon { opacity: 0; }
+.theme-toggle .icon-sun  { opacity: 1; }
+[data-theme="dark"] .theme-toggle .icon-moon { opacity: 1; }
+[data-theme="dark"] .theme-toggle .icon-sun  { opacity: 0; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .theme-toggle .icon-moon { opacity: 1; }
+  :root:not([data-theme="light"]) .theme-toggle .icon-sun  { opacity: 0; }
+}
+/* --- Sidebar nav --- */
 nav {
   position: fixed;
   top: 0; left: 0;
   width: 280px;
   height: 100vh;
   overflow-y: auto;
-  background: var(--nav-bg);
+  background: var(--bg-secondary);
   border-right: 1px solid var(--border);
   padding: 1.5rem 1rem;
   font-size: 0.85rem;
   z-index: 10;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 nav .logo {
   font-size: 1.2rem;
@@ -47,96 +141,109 @@ nav .logo {
 }
 nav .version {
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--text-secondary);
   margin-bottom: 1.25rem;
   display: block;
 }
-nav ol {
-  list-style: none;
-  counter-reset: toc;
-}
+nav ol { list-style: none; }
 nav ol li { margin-bottom: 0.3rem; }
 nav ol li a {
-  color: var(--fg);
+  color: var(--text-primary);
   text-decoration: none;
   padding: 0.2rem 0.4rem;
   border-radius: 4px;
   display: block;
-  transition: background 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 nav ol li a:hover, nav ol li a.active {
-  background: var(--accent-light);
+  background: var(--bg-tertiary);
   color: var(--accent);
 }
-/* Main content */
+/* --- Main content --- */
 main {
   margin-left: 280px;
   width: calc(100% - 280px);
-  max-width: var(--max-w);
+  max-width: 52rem;
   padding: 2.5rem 2rem 4rem;
 }
-h1 {
-  font-size: 2rem;
-  margin-bottom: 0.25rem;
-  color: var(--accent);
-  border-bottom: 3px solid var(--accent);
-  padding-bottom: 0.5rem;
+/* --- Typographie --- */
+h1, h2, h3, h4 {
+  color: var(--text-heading);
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border-light);
 }
-.meta { color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
-h2 {
-  font-size: 1.5rem;
-  margin-top: 3rem;
-  margin-bottom: 1rem;
-  padding-bottom: 0.35rem;
-  border-bottom: 2px solid var(--border);
-}
-h3 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.75rem; }
-h4 { font-size: 1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-p, ul, ol { margin-bottom: 1rem; }
-ul, ol { padding-left: 1.5rem; }
+h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); }
+h2 { font-size: 1.5rem; margin-top: 3rem; }
+h3 { font-size: 1.25rem; border-bottom: none; }
+h4 { font-size: 1.1rem; border-bottom: none; }
+p { margin-bottom: 1rem; color: var(--text-primary); }
+.meta { color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+strong { color: var(--text-heading); font-weight: 600; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+/* --- Listes --- */
+ul, ol { padding-left: 1.5rem; margin-bottom: 1rem; }
 li { margin-bottom: 0.3rem; }
-a { color: var(--accent); }
-strong { font-weight: 600; }
-code {
-  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
-  font-size: 0.88em;
-  background: var(--code-bg);
-  padding: 0.15em 0.35em;
-  border-radius: 3px;
-}
-pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 1rem 1.25rem;
-  overflow-x: auto;
-  margin-bottom: 1.25rem;
-  font-size: 0.85rem;
-  line-height: 1.5;
-}
-pre code { background: none; padding: 0; }
+/* --- Tableaux --- */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 1.5rem;
+  margin: 1rem 0 1.5rem;
   font-size: 0.9rem;
 }
 th, td {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--table-border);
   text-align: left;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border);
 }
-th { background: var(--accent-light); font-weight: 600; }
-tr:nth-child(even) { background: var(--table-stripe); }
-hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+th {
+  background-color: var(--table-header-bg);
+  font-weight: 600;
+  color: var(--text-heading);
+}
+tr:nth-child(even) td { background-color: var(--table-row-alt); }
+/* --- Code --- */
+code {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  background-color: var(--code-bg);
+  color: var(--code-text);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+pre {
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 1rem 0 1.5rem;
+}
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+/* --- Blockquotes --- */
 blockquote {
-  border-left: 4px solid var(--accent);
+  border-left: 3px solid var(--blockquote-border);
   padding: 0.5rem 1rem;
   margin: 1rem 0;
-  background: var(--accent-light);
-  border-radius: 0 6px 6px 0;
+  color: var(--blockquote-text);
 }
-/* Mobile */
+/* --- Back to top --- */
+.top-link {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: var(--accent);
+}
+/* --- Responsive --- */
 @media (max-width: 768px) {
   nav {
     position: relative;
@@ -148,17 +255,19 @@ blockquote {
   }
   body { flex-direction: column; }
   main { margin-left: 0; width: 100%; padding: 1.5rem 1rem; }
-}
-/* Back to top */
-.top-link {
-  display: inline-block;
-  margin-top: 1rem;
-  font-size: 0.85rem;
-  color: var(--accent);
+  table { font-size: 0.8rem; }
+  th, td { padding: 0.4rem 0.5rem; }
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
 }
 </style>
 </head>
 <body>
+
+<button class="theme-toggle" aria-label="Changer de theme">
+  <span class="icon-sun">&#9728;&#65039;</span>
+  <span class="icon-moon">&#127769;</span>
+</button>
 
 <nav>
   <div class="logo">SILA</div>
@@ -728,5 +837,28 @@ data/projects/{project_id}/manifest.json</code></pre>
 
 </main>
 
+<script>
+(function() {
+  var toggle = document.querySelector('.theme-toggle');
+  var root = document.documentElement;
+
+  // Charger la preference sauvegardee
+  var saved = localStorage.getItem('sila-theme');
+  if (saved) {
+    root.setAttribute('data-theme', saved);
+  }
+
+  // Toggle au clic
+  toggle.addEventListener('click', function() {
+    var current = root.getAttribute('data-theme');
+    var isDark = current === 'dark' ||
+      (!current && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+    var next = isDark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    localStorage.setItem('sila-theme', next);
+  });
+})();
+</script>
 </body>
 </html>
