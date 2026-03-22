@@ -1,0 +1,24 @@
+# Configuration par defaut du pipeline SILA V1
+# Voir MASTERPLAN.md §8.2 pour les valeurs de reference.
+
+pipeline:
+  version: "0.1.0"
+
+tts:
+  engine: "cosyvoice-3.0-0.5b"
+  seed: 42
+
+mt:
+  engine: "nllb-200-3.3b-ct2"
+
+segmentation:
+  max_duration_ms: 10000
+  preferred_duration_ms: 6000
+  pause_split_threshold_ms: 400
+  min_duration_ms: 3000
+
+audio:
+  sample_rate: 48000
+  crossfade_ms: 50
+  max_stretch_ratio: 1.25
+  loudness_target_lufs: -16

@@ -1,0 +1,9 @@
+{
+  "description": "Exemple de glossaire projet. Voir MASTERPLAN.md §6.1 Phase 6.2.",
+  "source_lang": "fr",
+  "entries": {
+    "pipeline": "pipeline",
+    "doublage": "dubbing",
+    "sous-titrage": "subtitling"
+  }
+}

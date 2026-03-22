@@ -1,0 +1,39 @@
+# Registry des modeles. Voir MASTERPLAN.md §3.1.
+
+models:
+  whisperx:
+    name: "whisperx-large-v3"
+    path: "models/whisperx/"
+    vram_gb: 8
+    status: "v1"
+
+  nllb-200:
+    name: "nllb-200-3.3b-ct2"
+    path: "models/nllb-200-3.3b-ct2/"
+    vram_gb: 0  # CPU int8
+    ram_gb: 6
+    status: "v1"
+
+  cosyvoice:
+    name: "cosyvoice-3.0-0.5b"
+    path: "models/cosyvoice3-0.5b/"
+    vram_gb: 4
+    status: "v1"
+
+  qwen3-tts:
+    name: "qwen3-tts-1.7b"
+    path: "models/qwen3-tts-1.7b/"
+    vram_gb: 6
+    status: "v2-benchmark"
+
+  demucs:
+    name: "htdemucs_ft"
+    path: "models/demucs-htdemucs_ft/"
+    vram_gb: 4
+    status: "v2"
+
+  mistral-small:
+    name: "mistral-small-3.2-24b-q4km"
+    path: "models/mistral-small-3.2-24b/"
+    vram_gb: 15
+    status: "v2"

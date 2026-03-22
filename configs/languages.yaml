@@ -1,0 +1,34 @@
+# Langues supportees par tier. Voir MASTERPLAN.md §16 R3.
+
+tier1:
+  # Langues bien testees, qualite TTS verifiee
+  - code: en
+    name: English
+    nllb_code: eng_Latn
+  - code: fr
+    name: French
+    nllb_code: fra_Latn
+  - code: es
+    name: Spanish
+    nllb_code: spa_Latn
+  - code: de
+    name: German
+    nllb_code: deu_Latn
+
+tier2:
+  # Langues supportees, qualite a verifier
+  - code: it
+    name: Italian
+    nllb_code: ita_Latn
+  - code: ja
+    name: Japanese
+    nllb_code: jpn_Jpan
+  - code: ko
+    name: Korean
+    nllb_code: kor_Hang
+  - code: ru
+    name: Russian
+    nllb_code: rus_Cyrl
+  - code: zh
+    name: Chinese
+    nllb_code: zho_Hans

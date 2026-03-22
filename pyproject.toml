@@ -1,0 +1,36 @@
+[project]
+name = "sila"
+version = "0.1.0"
+description = "Seamless International Language Automation — AI-powered video dubbing pipeline"
+requires-python = ">=3.10"
+license = {text = "Proprietary"}
+authors = [
+    {name = "HK Conseils"},
+]
+dependencies = [
+    "pydantic>=2.0",
+    "rich>=13.0",
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+sila = "src.cli.main:cli"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
