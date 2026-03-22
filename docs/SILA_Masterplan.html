@@ -39,8 +39,14 @@
   --timeline-line:#D0D0D0;
 }
 
-body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.7;font-size:15px;transition:background .3s,color .3s}
-::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:3px}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6;font-size:15px;transition:background .3s,color .3s}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:var(--bg-code)}::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:3px}::-webkit-scrollbar-thumb:hover{background:#3A3A4A}
+.mono{font-family:'Fira Code',monospace}
+.label{font-size:10px;color:var(--text-muted);font-family:'Fira Code',monospace;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.text{font-size:13px;color:#999;line-height:1.7}
+.divider{border-top:1px solid var(--border-light);margin:14px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tag{display:inline-block;font-size:9px;padding:2px 7px;border-radius:3px;margin-right:4px;margin-bottom:4px;font-family:'Fira Code',monospace}
 a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 
 /* THEME TOGGLE */
@@ -50,7 +56,7 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 /* HEADER */
 .hdr{background:var(--bg-hdr);padding:40px 24px 32px;position:relative;overflow:hidden;text-align:center;transition:background .3s}
 .hdr::before{content:'';position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#EF4444,#F59E0B,#10B981,#3B82F6,#8B5CF6,#EC4899,#EF4444)}
-.hdr h1{font-family:'Fira Code',monospace;font-size:2.2rem;font-weight:700;color:var(--text-strong);letter-spacing:4px;margin-bottom:4px}
+.hdr h1{font-family:'Fira Code',monospace;font-size:20px;font-weight:800;color:var(--text-strong);letter-spacing:-.5px;margin-bottom:4px}
 .hdr .h1sub{font-family:'Fira Code',monospace;font-size:11px;color:var(--text-muted);margin-bottom:12px;letter-spacing:.5px}
 .hdr .subtitle{font-family:'DM Sans',sans-serif;font-size:1.05rem;color:#9CA3AF;margin-bottom:16px}
 .hdr-badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
@@ -74,8 +80,8 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
 
 /* MAIN */
 .container{max-width:1060px;margin:0 auto;padding:32px 24px 80px}
-.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:32px;margin-bottom:24px;transition:background .3s,border-color .3s}
-.section-title{font-family:'Fira Code',monospace;font-size:15px;font-weight:700;color:var(--text-strong);margin-bottom:20px;padding-left:14px;border-left:3px solid var(--accent);line-height:1.4}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;transition:background .3s,border-color .3s}
+.section-title{font-family:'Fira Code',monospace;font-size:15px;font-weight:800;color:var(--text-strong);margin-bottom:20px;padding-left:14px;border-left:3px solid var(--accent);line-height:1.4}
 h3{font-family:'Fira Code',monospace;font-size:13px;font-weight:700;color:var(--text-strong);margin:20px 0 10px;letter-spacing:-.2px}
 h4{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;color:var(--text-strong);margin:16px 0 8px}
 p{margin:8px 0;font-size:14px;color:var(--text);line-height:1.8}
@@ -101,7 +107,7 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
 .pipeline-steps{display:flex;flex-direction:column;gap:0;margin:16px 0}
 .pipeline-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-light)}
 .pipeline-step:last-child{border-bottom:none}
-.step-num{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;font-family:'Fira Code',monospace;flex-shrink:0;color:#fff}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'Fira Code',monospace;flex-shrink:0;color:#fff}
 .step-body{flex:1}
 .step-title{font-weight:700;font-size:13px;color:var(--text-strong);margin-bottom:2px}
 .step-detail{font-size:12px;color:var(--text-muted);line-height:1.6}
@@ -109,16 +115,18 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
 /* PROGRESS BAR */
 .progress-row{display:flex;align-items:center;gap:12px;margin:8px 0;font-size:12px;font-family:'Fira Code',monospace}
 .progress-label{min-width:200px;color:var(--text)}
-.progress-bar{flex:1;height:8px;background:var(--progress-bg);border-radius:4px;overflow:hidden;position:relative}
+.progress-bar{flex:1;height:6px;background:var(--progress-bg);border-radius:3px;overflow:hidden;position:relative}
 .progress-fill{height:100%;border-radius:4px;transition:width .5s}
 .progress-value{min-width:50px;text-align:right;color:var(--text-muted);font-size:11px}
 
-/* TIMELINE */
-.timeline{position:relative;padding-left:40px;margin:24px 0}
-.timeline::before{content:'';position:absolute;left:15px;top:0;bottom:0;width:2px;background:var(--timeline-line)}
-.timeline-row{position:relative;margin-bottom:24px}
-.timeline-node{position:absolute;left:-40px;top:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;font-family:'Fira Code',monospace;color:#fff;z-index:1}
-.timeline-content{padding:16px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px}
+/* TIMELINE (horizontal, OC style) */
+.timeline-row{display:flex;align-items:center;margin:18px 0 8px;gap:0}
+.timeline-node{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;font-family:'Fira Code',monospace;flex-shrink:0;border:2px solid var(--border);background:var(--bg-card);color:var(--text-muted);cursor:default;transition:all .3s}
+.timeline-node.active{color:#fff;border-color:transparent}
+.timeline-node:hover{transform:scale(1.15)}
+.timeline-line{flex:1;height:2px;background:var(--timeline-line);margin:0 -2px;align-self:center}
+.timeline-cards{display:flex;gap:12px;margin-top:12px}
+.timeline-card{flex:1;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;border-top:3px solid transparent}
 .timeline-title{font-family:'Fira Code',monospace;font-size:13px;font-weight:700;color:var(--text-strong);margin-bottom:6px}
 .timeline-detail{font-size:12px;color:var(--text);line-height:1.7}
 
@@ -137,29 +145,30 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
 
 /* ACCORDION */
 .accordion{margin:12px 0}
-.accordion-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 16px;background:var(--bg-code);border:1px solid var(--border);border-radius:8px;font-family:'Fira Code',monospace;font-size:12px;font-weight:600;color:var(--text-strong);transition:all .2s;user-select:none}
-.accordion-header:hover{border-color:var(--accent)}
+.accordion-header{display:flex;align-items:center;gap:10px;cursor:pointer;padding:12px 16px;background:rgba(16,185,129,0.03);border:1px solid rgba(16,185,129,0.13);border-radius:8px;font-family:'Fira Code',monospace;font-size:12px;font-weight:600;color:var(--text-strong);transition:all .2s;user-select:none}
+.accordion-header:hover{background:rgba(16,185,129,0.06)}
 .accordion-arrow{transition:transform .3s;font-size:10px;color:var(--text-muted)}
 .accordion.open .accordion-arrow{transform:rotate(90deg)}
-.accordion-body{display:none;padding:16px;border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;background:var(--bg-card)}
+.accordion-body{display:none;padding:12px 16px;background:var(--bg-code);border-radius:0 0 8px 8px;border:1px solid rgba(16,185,129,0.13);border-top:none}
 .accordion.open .accordion-body{display:block}
 
 /* FOOTER */
 .footer{max-width:1060px;margin:0 auto;padding:30px 20px;border-top:1px solid var(--border);text-align:center}
-.footer-text{font-family:'Fira Code',monospace;font-size:9px;color:#555}
+.footer-text{font-family:'Fira Code',monospace;font-size:9px;color:#333}
 
-@media(max-width:768px){
+@media(max-width:700px){
   .container{padding:16px 12px}
-  .card{padding:20px 16px}
-  .hdr{padding:28px 16px 24px}
-  .hdr h1{font-size:1.5rem;letter-spacing:2px}
+  .card{padding:14px}
+  .hdr{padding:24px 16px 20px}
+  .hdr h1{font-size:16px}
   .nav-btn{padding:5px 8px;font-size:9px}
   .nav-inner{gap:2px;padding:6px 10px}
-  pre.diagram{font-size:9px;padding:12px}
-  .timeline{padding-left:34px}
-  .timeline-node{left:-34px;width:28px;height:28px;font-size:10px}
+  pre.diagram{font-size:9px;padding:10px}
+  .timeline-cards{flex-direction:column}
+  .grid2{grid-template-columns:1fr}
   .pipeline-step{flex-direction:column;gap:6px}
   .progress-label{min-width:120px;font-size:10px}
+  .gtm-table{font-size:9px}
 }
 </style>
 </head>
@@ -812,33 +821,32 @@ data/projects/{project_id}/manifest.json</code></pre>
 <div class="card" id="s14">
   <h2 class="section-title">14. Roadmap V1 / V2 / V3</h2>
 
-  <div class="timeline">
-    <div class="timeline-row">
-      <div class="timeline-node" style="background:#10B981">V1</div>
-      <div class="timeline-content">
-        <div class="timeline-title">"Proof of Value" &mdash; 6-8 semaines</div>
-        <div class="timeline-detail">
-          <p><strong>Inclus :</strong> CLI Python, vid&eacute;o &le;10 min, 1 locuteur, 1 langue cible, CosyVoice 3.0, WhisperX monolithique, manifeste JSON, script s&eacute;quentiel, nommage d&eacute;terministe, reprise par &eacute;tape, FFmpeg loudnorm global.</p>
-          <p><strong>Exclu :</strong> API REST, vid&eacute;os &gt;10 min, multi-locuteurs, multi-langues, d&eacute;composition ASR, PostgreSQL, Celery/Redis, Demucs, diarisation, r&eacute;&eacute;criture LLM, lip-sync, parall&eacute;lisme.</p>
-        </div>
+  <!-- Timeline horizontale (style OpenClaw) -->
+  <div class="timeline-row">
+    <div class="timeline-node active" style="background:#10B981;border-color:#10B981">V1</div>
+    <div class="timeline-line"></div>
+    <div class="timeline-node active" style="background:#3B82F6;border-color:#3B82F6">V2</div>
+    <div class="timeline-line"></div>
+    <div class="timeline-node active" style="background:#8B5CF6;border-color:#8B5CF6">V3</div>
+  </div>
+  <div class="timeline-cards">
+    <div class="timeline-card" style="border-top-color:#10B981">
+      <div class="timeline-title">"Proof of Value" &mdash; 6-8 sem.</div>
+      <div class="timeline-detail">
+        <p><strong>Inclus :</strong> CLI Python, vid&eacute;o &le;10 min, 1 locuteur, 1 langue cible, CosyVoice 3.0, WhisperX, manifeste JSON, script s&eacute;quentiel.</p>
+        <p><strong>Exclu :</strong> API REST, multi-locuteurs, multi-langues, Demucs, diarisation, r&eacute;&eacute;criture LLM, lip-sync.</p>
       </div>
     </div>
-    <div class="timeline-row">
-      <div class="timeline-node" style="background:#3B82F6">V2</div>
-      <div class="timeline-content">
-        <div class="timeline-title">"Production interne" &mdash; 3-4 mois apr&egrave;s V1</div>
-        <div class="timeline-detail">
-          <p>Multi-locuteurs (pyannote), multi-langues (fan-out parall&egrave;le), Demucs v4, d&eacute;composition WhisperX, &eacute;valuation Qwen3-ASR, r&eacute;&eacute;criture contrainte (Mistral 24B), Celery + Redis, FastAPI, PostgreSQL JSONB, UTMOS, benchmark TTS, vid&eacute;os 1h+, glossaire, pyloudnorm.</p>
-        </div>
+    <div class="timeline-card" style="border-top-color:#3B82F6">
+      <div class="timeline-title">"Production interne" &mdash; 3-4 mois</div>
+      <div class="timeline-detail">
+        <p>Multi-locuteurs, multi-langues, Demucs v4, r&eacute;&eacute;criture Mistral 24B, Celery + Redis, FastAPI, PostgreSQL, UTMOS, vid&eacute;os 1h+, glossaire.</p>
       </div>
     </div>
-    <div class="timeline-row">
-      <div class="timeline-node" style="background:#8B5CF6">V3</div>
-      <div class="timeline-content">
-        <div class="timeline-title">"Produit" &mdash; 3-4 mois apr&egrave;s V2</div>
-        <div class="timeline-detail">
-          <p>UI review, lip-sync conditionnel (MuseTalk/Hallo2), d&eacute;tection &eacute;motions, export multi-piste, Temporal, S3/MinIO, monitoring Prometheus + Grafana, auto-routing TTS.</p>
-        </div>
+    <div class="timeline-card" style="border-top-color:#8B5CF6">
+      <div class="timeline-title">"Produit" &mdash; 3-4 mois</div>
+      <div class="timeline-detail">
+        <p>UI review, lip-sync conditionnel, d&eacute;tection &eacute;motions, Temporal, S3/MinIO, Prometheus + Grafana, auto-routing TTS.</p>
       </div>
     </div>
   </div>
