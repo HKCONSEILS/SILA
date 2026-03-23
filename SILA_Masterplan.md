@@ -1,6 +1,6 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
-**Nom de code** : `video-localization-pipeline`
+**Nom de code** : `SILA — Seamless International Language Automation`
 **Version du document** : 1.1.0
 **Date** : 2026-03-23
 **Statut** : Draft — En cours de validation
@@ -627,7 +627,7 @@ utmos_score         : float|null — score qualité (V2+)
 ## 9. Structure du monorepo
 
 ```
-video-localization-pipeline/
+SILA/
 │
 ├── README.md
 ├── MASTERPLAN.md                    ← Ce document
