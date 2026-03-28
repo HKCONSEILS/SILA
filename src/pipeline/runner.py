@@ -368,6 +368,18 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 )
                 p1_ms = tts_result.duration_ms
 
+                # P1 collapse retry — regenerate at speed=1.0 if abnormally short
+                if p1_ms < budget_ms * 0.10 and budget_ms > 2000:
+                    logger.warning("TTS P1 collapsed for %s (%dms at speed=1.0) — retrying", seg_id, p1_ms)
+                    tts_result = engine.synthesize(
+                        text=text,
+                        output_path=p1_path,
+                        target_lang=target_lang,
+                        speed=1.0,
+                    )
+                    p1_ms = tts_result.duration_ms
+                    logger.info("TTS P1 retry: %dms", p1_ms)
+
                 # --- Decide: keep P1 or do PASS 2 ---
                 speed_exact = p1_ms / budget_ms if budget_ms > 0 else 1.0
                 collapse_threshold = budget_ms * 0.10
@@ -381,7 +393,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
 
                 else:
                     # P2: regenerate with exact speed (no margin — CosyVoice is super-linear)
-                    speed_p2 = min(2.5, speed_exact)
+                    speed_p2 = min(2.0, speed_exact)
                     logger.info("TTS P2 [%d/%d] %s (speed=%.2f, P1 was %dms / %dms budget)", i + 1, len(translations), seg_id, speed_p2, p1_ms, budget_ms)
 
                     p2_path = tts_dir / f"{seg_id}_p2.wav"

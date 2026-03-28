@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Seuils de timing. Voir MASTERPLAN.md §13.2.
 TIMING_FIT_TOLERANCE = 0.15  # ±15%
-MAX_STRETCH_RATIO = 1.25
+MAX_STRETCH_RATIO = 1.50
 
 
 def classify_timing_fit(

@@ -11,7 +11,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-MAX_STRETCH_RATIO = 1.25
+MAX_STRETCH_RATIO = 1.50
 
 
 def time_stretch(
