@@ -351,10 +351,12 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 text = text[:max_chars].rsplit(" ", 1)[0]
 
             # Estimate TTS speed to fit timing budget
-            # English TTS at speed=1.0 generates ~8 chars/sec on average
+            # CosyVoice at speed=1.0 generates ~5.5 chars/sec for English
             budget_ms = trans["timing_budget_ms"]
-            est_duration_s = len(text) / 8.0
-            est_speed = max(1.0, min(2.0, est_duration_s / (budget_ms / 1000)))
+            est_duration_s = len(text) / 5.5
+            # Allow up to 1.15x overshoot (will be covered by time-stretch)
+            target_s = budget_ms / 1000 * 1.15
+            est_speed = max(1.0, min(2.5, est_duration_s / target_s))
             if est_speed > 1.05:
                 logger.info("Speed adjustment for %s: %.2fx (est %.1fs for %dms budget)", seg_id, est_speed, est_duration_s, budget_ms)
 
