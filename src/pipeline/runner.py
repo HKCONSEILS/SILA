@@ -344,18 +344,18 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
             text = trans["translated_text"]
             output_path = tts_dir / f"{seg_id}.wav"
 
-            if output_path.exists():
-                import soundfile as sf
-                info = sf.info(str(output_path))
-                tts_result_ms = int(info.duration * 1000)
-            else:
-                # Truncate excessively long text to prevent absurd TTS durations
+            # Truncate excessively long text to prevent absurd TTS durations
             max_chars = max(200, int(trans["timing_budget_ms"] * 0.02))  # ~20 chars/sec
             if len(text) > max_chars:
                 logger.warning("TTS text too long for %s (%d chars, max %d) — truncating", seg_id, len(text), max_chars)
                 text = text[:max_chars].rsplit(" ", 1)[0]
 
-            logger.info("TTS [%d/%d] %s: %s", i + 1, len(translations), seg_id, text[:60])
+            if output_path.exists():
+                import soundfile as sf
+                info = sf.info(str(output_path))
+                tts_result_ms = int(info.duration * 1000)
+            else:
+                logger.info("TTS [%d/%d] %s: %s", i + 1, len(translations), seg_id, text[:60])
                 tts_result = engine.synthesize(
                     text=text,
                     output_path=output_path,
