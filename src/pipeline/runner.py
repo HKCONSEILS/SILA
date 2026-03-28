@@ -287,6 +287,92 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
     return manifest
 
 
+
+# =========================================================================
+# Phase 7 : Rewrite (LLM constrained rewriting)
+# =========================================================================
+
+
+def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
+    """Phase 7 : Reecriture contrainte LLM pour segments trop longs."""
+    from src.engines.rewrite.llm_rewrite_engine import LLMRewriteEngine
+    from src.core.timing import classify_timing_fit, TIMING_FIT_TOLERANCE
+    from src.core.models import TimingFitStatus
+
+    project_dir = manifest_path.parent
+    stage_key = f"rewrite_{target_lang}"
+
+    translations_key = f"_translations_{target_lang}"
+    if translations_key not in manifest:
+        trans_path = project_dir / "asr" / f"translations_{target_lang}.json"
+        with open(trans_path) as f:
+            manifest[translations_key] = json.load(f)
+
+    translations = manifest[translations_key]
+    rewrite_count = 0
+    chars_saved = 0
+
+    update_stage(manifest, stage_key, StageStatus.RUNNING)
+    save_manifest(manifest, manifest_path)
+
+    try:
+        engine = LLMRewriteEngine()
+
+        for i, trans in enumerate(translations):
+            seg_id = trans["segment_id"]
+            text = trans["translated_text"]
+            budget_ms = trans["timing_budget_ms"]
+
+            # Estimate if rewrite is needed: ~15 chars/s for English TTS
+            est_duration_ms = len(text) / 15.0 * 1000
+            fit = classify_timing_fit(int(est_duration_ms), budget_ms)
+
+            if fit == TimingFitStatus.FIT_OK:
+                continue  # No rewrite needed
+
+            if fit == TimingFitStatus.REVIEW_REQUIRED:
+                logger.info("Rewrite skip %s: review_required (est %dms >> %dms budget)", seg_id, int(est_duration_ms), budget_ms)
+                continue  # Too far gone, don't rewrite
+
+            # fit == REWRITE_NEEDED — do the rewrite
+            max_chars = int(budget_ms / 1000 * 15)  # ~15 chars/s target
+            logger.info("Rewrite [%d/%d] %s: %d chars -> max %d chars", i + 1, len(translations), seg_id, len(text), max_chars)
+
+            result = engine.rewrite(
+                text=text,
+                target_lang=target_lang,
+                max_chars=max_chars,
+                timing_budget_ms=budget_ms,
+            )
+
+            if len(result.text) < len(text):
+                saved = len(text) - len(result.text)
+                chars_saved += saved
+                trans["translated_text"] = result.text
+                trans["original_text"] = text
+                trans["rewritten"] = True
+                rewrite_count += 1
+                logger.info("Rewrite %s: %d -> %d chars (-%d)", seg_id, len(text), len(result.text), saved)
+            else:
+                logger.info("Rewrite %s: no reduction (%d -> %d chars)", seg_id, len(text), len(result.text))
+
+        engine.close()
+
+        # Save updated translations
+        rewritten_path = project_dir / "asr" / f"translations_{target_lang}.json"
+        with open(rewritten_path, "w") as f:
+            json.dump(translations, f, indent=2, ensure_ascii=False)
+
+        update_stage(manifest, stage_key, StageStatus.COMPLETED, segments_count=rewrite_count)
+    except Exception as exc:
+        update_stage(manifest, stage_key, StageStatus.FAILED, error=str(exc))
+        save_manifest(manifest, manifest_path)
+        raise
+
+    save_manifest(manifest, manifest_path)
+    logger.info("Phase 7 (Rewrite) done: %d segments rewritten, %d chars saved", rewrite_count, chars_saved)
+    return manifest
+
 # =========================================================================
 # Phase 8 : TTS (CosyVoice)
 # =========================================================================
@@ -708,6 +794,14 @@ def run_pipeline(
     t_mt = time.time()
     manifest = run_translate(manifest, manifest_path, target_lang)
     logger.info("Translation took %.1fs", time.time() - t_mt)
+
+    # Phase 7 : Rewrite (LLM constrained)
+    logger.info("=" * 60)
+    logger.info("PHASE 7 — REWRITE (LLM)")
+    logger.info("=" * 60)
+    t_rw = time.time()
+    manifest = run_rewrite(manifest, manifest_path, target_lang)
+    logger.info("Rewrite took %.1fs", time.time() - t_rw)
 
     # Phase 8 : TTS
     logger.info("=" * 60)
