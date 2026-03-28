@@ -1,8 +1,8 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.1.0
-**Date** : 2026-03-23
+**Version du document** : 1.2.0
+**Date** : 2026-03-28
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
@@ -142,6 +142,7 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 | Réécriture contrainte (fallback) | Ministral 3 8B Instruct (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~5 Go | ✅ Retenu V2 |
 | TTS / voice cloning (principal) | CosyVoice 3.0 (Fun-CosyVoice3-0.5B) | Apache 2.0 | ~4 Go | ✅ Verrouillé |
 | TTS / voice cloning (alternatif) | Qwen3-TTS 1.7B | Apache 2.0 | ~6 Go | ✅ Verrouillé |
+| TTS / voice cloning (challenger) | Voxtral TTS 4B (Mistral, mars 2026). 9 langues, clonage 2-3s, streaming ~100ms TTFA. ⚠️ Licence : poids open-weights mais voix de référence CC-BY-NC 4.0 (vérifier si usage avec voix propres lève la restriction). | Open-weights ⚠️ | ~8 Go | 🔄 À benchmarker |
 | Time-stretching | pyrubberband (wrapper librubberband) | MIT | 0 (CPU) | ✅ Verrouillé |
 | Normalisation loudness | FFmpeg loudnorm (EBU R128). pyloudnorm en V2. | — | 0 (CPU) | ✅ Verrouillé |
 | Orchestration | Script séquentiel (V1), Celery + Redis (V2), Temporal (V3) | BSD/MIT | 0 (CPU) | ✅ Verrouillé |
@@ -175,7 +176,19 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 - **Langues** : 10 (zh, en, ja, ko, de, fr, ru, pt, es, it)
 - **Features** : Clonage 3s de référence, voice design par description textuelle, dual-track LM, génération longue (jusqu'à 10 min)
 - **Taux d'erreur** : WER moyen 1.835% sur 10 langues, speaker similarity 0.789
-- **Décision** : Benchmarker CosyVoice vs Qwen3-TTS sur golden set interne avant V2. Inversion possible.
+- **Décision** : Benchmarker CosyVoice vs Qwen3-TTS vs Voxtral TTS sur golden set interne avant V2. Inversion possible.
+
+#### Voxtral TTS 4B (challenger, mars 2026)
+
+- **Modèle** : Voxtral-4B-TTS-2603
+- **Langues** : 9 (en, fr, de, es, nl, pt, it, hi, ar) + dialectes
+- **Features** : Zero-shot voice cloning 2-3s, streaming ~100ms TTFA, emotion steering, cross-lingual cloning, pas besoin de transcript pour le voice prompt
+- **Serving** : vLLM-Omni (>= 0.18.0) — fork spécifique de vLLM, pas le vLLM standard
+- **Sortie audio** : 24 kHz (resample 48 kHz nécessaire, comme CosyVoice)
+- **VRAM** : ~8 Go estimé (4B paramètres BF16)
+- **Benchmarks Mistral** : bat ElevenLabs Flash v2.5 en naturalité (évaluations humaines), parité avec ElevenLabs v3
+- **⚠️ Licence** : poids open-weights, mais les voix de référence fournies sont CC-BY-NC 4.0. Le modèle "hérite" de cette licence selon HuggingFace. À clarifier : l'utilisation avec des voix propres (clonées depuis nos vidéos) est-elle exempte de la restriction NC ? Vérification juridique requise avant usage commercial.
+- **⚠️ Maturité** : sorti le 26 mars 2026 (2 jours). Zéro retour terrain. Écosystème Mistral déjà présent sur l'infra (avantage intégration).
 
 ### 3.4 Détail du LLM de réécriture (V2)
 
@@ -361,7 +374,7 @@ Phase 7: RÉÉCRITURE CONTRAINTE [V2+] (parallèle par segment)
   └── 7.1  Si rewrite_needed : LLM local → variante courte respectant timing_budget_ms
 
 Phase 8: TTS / VOICE CLONING (parallèle par segment × langue)
-  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS)
+  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS / Voxtral TTS)
   ├── 8.2  Mesurer durée réelle
   ├── 8.3  Si écart > seuil : time-stretch ≤1.25× (pyrubberband)
   └── 8.4  Si stretch > 1.25× → review_required
@@ -672,7 +685,8 @@ SILA/
 │   │   ├── tts/
 │   │   │   ├── interface.py          ← TTS_Interface (ABC)
 │   │   │   ├── cosyvoice_engine.py   ← Implémentation CosyVoice 3.0
-│   │   │   └── qwen3_tts_engine.py   ← Implémentation Qwen3-TTS
+│   │   │   ├── qwen3_tts_engine.py   ← Implémentation Qwen3-TTS
+│   │   │   └── voxtral_tts_engine.py  ← Implémentation Voxtral TTS [V2]
 │   │   ├── separation/
 │   │   │   ├── interface.py          ← Separation_Interface (ABC)
 │   │   │   └── demucs_engine.py      ← Implémentation Demucs v4
@@ -765,7 +779,7 @@ SILA/
 │
 ├── scripts/
 │   ├── download_models.sh           ← Téléchargement de tous les modèles
-│   ├── benchmark_tts.py             ← Benchmark CosyVoice vs Qwen3-TTS
+│   ├── benchmark_tts.py             ← Benchmark CosyVoice vs Qwen3-TTS vs Voxtral TTS
 │   ├── benchmark_mt.py              ← Benchmark NLLB vs MADLAD
 │   └── validate_manifest.py         ← Validation schéma manifeste
 │
@@ -1153,7 +1167,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | API REST FastAPI | Upload, suivi, téléchargement |
 | PostgreSQL JSONB | Index de consultation, suivi progression |
 | UTMOS | Quality gate automatique |
-| Benchmark TTS | CosyVoice vs Qwen3-TTS sur golden set |
+| Benchmark TTS | CosyVoice vs Qwen3-TTS vs Voxtral TTS sur golden set |
 | Vidéos longues (1h+) | Chunking technique + réconciliation |
 | Glossaire projet | Injection dans traduction et réécriture |
 | pyloudnorm | Normalisation segment par segment |
@@ -1186,8 +1200,9 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | [facebookresearch/demucs](https://github.com/facebookresearch/demucs) | Séparation vocale. Repo archivé. | Surveiller les forks actifs |
 | [OpenNMT/CTranslate2](https://github.com/OpenNMT/CTranslate2) | Runtime d'inférence MT. | Compatibilité nouveaux modèles |
 | [unsloth/unsloth](https://github.com/unslothai/unsloth) | Quantification GGUF optimisée. | Nouvelles quants Mistral / LLM |
-| [mistralai](https://github.com/mistralai) | Écosystème Mistral complet : LLM (Small 3.x, Small 4, Ministral 3), audio (Voxtral), code (Devstral). | Nouvelles versions pour réécriture (LLM) et ASR (Voxtral) |
-| [mistralai/Voxtral-Mini-4B-Realtime-2602](https://github.com/mistralai) | ASR streaming + batch, diarisation native, 13 langues, context biasing, Apache 2.0. | Candidat remplacement WhisperX en V2. Benchmark sur golden set SILA vs WhisperX vs Qwen3-ASR |
+| [mistralai](https://github.com/mistralai) | Écosystème Mistral complet : LLM (Small 3.x, Small 4, Ministral 3), audio (Voxtral ASR + TTS), code (Devstral). | Nouvelles versions pour réécriture (LLM), ASR (Voxtral Transcribe) et TTS (Voxtral TTS) |
+| [mistralai/Voxtral-Mini-4B-Realtime-2602](https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602) | ASR streaming + batch, diarisation native, 13 langues, context biasing, Apache 2.0. Candidat remplacement WhisperX en V2. | Benchmark sur golden set SILA vs WhisperX vs Qwen3-ASR |
+| [mistralai/Voxtral-4B-TTS-2603](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) | TTS 4B, 9 langues, clonage 2-3s, streaming ~100ms TTFA, open-weights. Mars 2026. Challenger CosyVoice/Qwen3-TTS. | Benchmark sur golden set SILA. Clarifier licence (CC-BY-NC via voix de ref). |
 
 ### 15.2 Modèles à surveiller (veille mensuelle)
 
@@ -1197,6 +1212,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | ASR | **Voxtral Realtime 4B** (Mistral) | Streaming ASR, latence configurable 200ms-2.4s. Apache 2.0 open-weights. Même architecture que Transcribe V2 mais optimisé temps réel. Pertinent si SILA évolue vers du near-realtime. |
 | ASR | **Qwen3-ASR** (Alibaba) | Nouveau SOTA ASR open-source début 2026. Candidat remplacement Whisper en V2. |
 | ASR | **Canary Qwen 2.5B** (NVIDIA) | Top HuggingFace Open ASR leaderboard. Pas de diarisation intégrée. |
+| TTS | **Voxtral TTS 4B** (Mistral) | Open-weights, 9 langues, clonage 2-3s, streaming 100ms TTFA, bat ElevenLabs Flash v2.5. Mars 2026 — très récent, zéro retour terrain. vLLM-Omni requis. ⚠️ Licence à clarifier (CC-BY-NC via voix de ref). Challenger prioritaire. |
 | TTS | **GLM-TTS** (Zhipu) | Reinforcement learning, bonne qualité zh/en. |
 | TTS | **Orpheus TTS** | Si le multilingue sort de "research preview". |
 | MT | **MADLAD-400** | Alternative Apache 2.0 à NLLB. |
@@ -1294,6 +1310,13 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Contexte** : Demucs améliore la qualité mais double la complexité.
 - **Décision** : V1 cible des contenus voix-only (podcasts, cours). Demucs ajouté en V2.
 - **Conséquence** : Mix V1 plus simple. Acceptable pour le cas d'usage V1.
+
+### ADR-006 : Voxtral TTS ajouté comme challenger TTS (mars 2026)
+- **Date** : 2026-03-28
+- **Contexte** : Mistral a sorti Voxtral TTS 4B le 26 mars 2026. Open-weights, 9 langues, clonage 2-3s, streaming ~100ms TTFA, bat ElevenLabs Flash v2.5 selon évaluations humaines Mistral. Écosystème Mistral déjà présent sur l'infra HKCONSEILS (Ministral 14B, Magistral Small, LiteLLM). Serving via vLLM-Omni.
+- **Décision** : Ajouter Voxtral TTS comme 3ème candidat TTS à benchmarker en V2, aux côtés de CosyVoice 3.0 (principal) et Qwen3-TTS (alternatif). Ne pas switcher en V1 — stabiliser d'abord le pipeline avec CosyVoice (TTS 2 passes).
+- **Risque licence** : Les voix de référence fournies par Mistral sont CC-BY-NC 4.0, et le modèle sur HuggingFace "hérite" de cette licence. À clarifier : l'utilisation avec des voix propres (clonées depuis les vidéos source, pas les voix Mistral) lève-t-elle la restriction NC ? Vérification juridique requise avant usage commercial.
+- **Conséquence** : Le benchmark TTS V2 passe de 2 à 3 candidats. L'interface TTS abstraite (principe P12) permet d'intégrer Voxtral sans changer le pipeline.
 
 ---
 
