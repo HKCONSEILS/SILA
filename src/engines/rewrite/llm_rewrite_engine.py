@@ -88,7 +88,7 @@ class LLMRewriteEngine(RewriterInterface):
             rewritten = data["choices"][0]["text"].strip()
 
             # Clean up quotes
-            if rewritten.startswith(\'"\') and rewritten.endswith(\'"\'):
+            if rewritten.startswith(chr(34)) and rewritten.endswith(chr(34)):
                 rewritten = rewritten[1:-1].strip()
 
             char_count = len(rewritten)
