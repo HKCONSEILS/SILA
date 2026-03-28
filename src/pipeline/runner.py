@@ -379,47 +379,43 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                     tts_result_ms = p1_ms
                     logger.info("TTS P1 %s: %dms fits budget %dms (ratio %.2f) — keeping", seg_id, p1_ms, budget_ms, speed_exact)
 
-                elif speed_exact <= 2.5:
-                    # P2: regenerate with exact speed (+10% margin for stretch)
-                    speed_p2 = min(2.5, speed_exact * 1.10)
+                else:
+                    # P2: regenerate with exact speed (no margin — CosyVoice is super-linear)
+                    speed_p2 = min(2.5, speed_exact)
                     logger.info("TTS P2 [%d/%d] %s (speed=%.2f, P1 was %dms / %dms budget)", i + 1, len(translations), seg_id, speed_p2, p1_ms, budget_ms)
+
+                    p2_path = tts_dir / f"{seg_id}_p2.wav"
                     tts_result = engine.synthesize(
                         text=text,
-                        output_path=output_path,
+                        output_path=p2_path,
                         target_lang=target_lang,
                         speed=speed_p2,
                     )
-                    tts_result_ms = tts_result.duration_ms
+                    p2_ms = tts_result.duration_ms
 
                     # Collapse detection (relative threshold)
-                    if tts_result_ms < collapse_threshold:
-                        logger.warning("TTS P2 collapsed for %s (%dms < %dms threshold) — keeping P1 (%dms)", seg_id, tts_result_ms, int(collapse_threshold), p1_ms)
+                    if p2_ms < collapse_threshold:
+                        logger.warning("TTS P2 collapsed for %s (%dms < %dms threshold) — keeping P1 (%dms)", seg_id, p2_ms, int(collapse_threshold), p1_ms)
                         import shutil
                         shutil.move(str(p1_path), str(output_path))
+                        p2_path.unlink(missing_ok=True)
                         tts_result_ms = p1_ms
                     else:
-                        # Remove P1 temp file
-                        p1_path.unlink(missing_ok=True)
-
-                else:
-                    # speed_exact > 2.5: regenerate at max speed 2.5
-                    logger.info("TTS P2 [%d/%d] %s (speed=2.50 MAX, P1 was %dms / %dms budget, ratio %.2f)", i + 1, len(translations), seg_id, p1_ms, budget_ms, speed_exact)
-                    tts_result = engine.synthesize(
-                        text=text,
-                        output_path=output_path,
-                        target_lang=target_lang,
-                        speed=2.5,
-                    )
-                    tts_result_ms = tts_result.duration_ms
-
-                    # Collapse detection (relative threshold)
-                    if tts_result_ms < collapse_threshold:
-                        logger.warning("TTS P2 collapsed for %s (%dms < %dms threshold) — keeping P1 (%dms)", seg_id, tts_result_ms, int(collapse_threshold), p1_ms)
-                        import shutil
-                        shutil.move(str(p1_path), str(output_path))
-                        tts_result_ms = p1_ms
-                    else:
-                        p1_path.unlink(missing_ok=True)
+                        # Pick whichever is closer to budget
+                        p1_delta = abs(p1_ms - budget_ms)
+                        p2_delta = abs(p2_ms - budget_ms)
+                        if p2_delta <= p1_delta:
+                            import shutil
+                            shutil.move(str(p2_path), str(output_path))
+                            p1_path.unlink(missing_ok=True)
+                            tts_result_ms = p2_ms
+                            logger.info("TTS %s: P2 closer (%dms, delta %dms) vs P1 (%dms, delta %dms)", seg_id, p2_ms, p2_delta, p1_ms, p1_delta)
+                        else:
+                            import shutil
+                            shutil.move(str(p1_path), str(output_path))
+                            p2_path.unlink(missing_ok=True)
+                            tts_result_ms = p1_ms
+                            logger.info("TTS %s: P1 closer (%dms, delta %dms) vs P2 (%dms, delta %dms)", seg_id, p1_ms, p1_delta, p2_ms, p2_delta)
 
             # --- Time-stretch if needed ---
             stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
