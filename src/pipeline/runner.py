@@ -350,16 +350,25 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 logger.warning("TTS text too long for %s (%d chars, max %d) — truncating", seg_id, len(text), max_chars)
                 text = text[:max_chars].rsplit(" ", 1)[0]
 
+            # Estimate TTS speed to fit timing budget
+            # English TTS at speed=1.0 generates ~8 chars/sec on average
+            budget_ms = trans["timing_budget_ms"]
+            est_duration_s = len(text) / 8.0
+            est_speed = max(1.0, min(2.0, est_duration_s / (budget_ms / 1000)))
+            if est_speed > 1.05:
+                logger.info("Speed adjustment for %s: %.2fx (est %.1fs for %dms budget)", seg_id, est_speed, est_duration_s, budget_ms)
+
             if output_path.exists():
                 import soundfile as sf
                 info = sf.info(str(output_path))
                 tts_result_ms = int(info.duration * 1000)
             else:
-                logger.info("TTS [%d/%d] %s: %s", i + 1, len(translations), seg_id, text[:60])
+                logger.info("TTS [%d/%d] %s (speed=%.2f): %s", i + 1, len(translations), seg_id, est_speed, text[:60])
                 tts_result = engine.synthesize(
                     text=text,
                     output_path=output_path,
                     target_lang=target_lang,
+                    speed=est_speed,
                 )
                 tts_result_ms = tts_result.duration_ms
 
