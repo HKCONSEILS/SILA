@@ -50,6 +50,11 @@ def assemble_segments(
         if audio.ndim > 1:
             audio = audio[:, 0]
 
+        # Resample if TTS sample rate differs from timeline (e.g. 24kHz -> 48kHz)
+        if sr != sample_rate:
+            import librosa
+            audio = librosa.resample(audio, orig_sr=sr, target_sr=sample_rate)
+
         start_sample = int(seg["start_ms"] * sample_rate / 1000)
         end_sample = min(start_sample + len(audio), total_samples)
         seg_length = end_sample - start_sample
