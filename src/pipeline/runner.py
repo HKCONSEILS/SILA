@@ -292,9 +292,12 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
 # =========================================================================
 
 
-def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 8 : TTS via CosyVoice3 cross-lingual."""
-    from src.engines.tts.cosyvoice_engine import CosyVoiceEngine
+def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: str = "cosyvoice") -> dict:
+    """Phase 8 : TTS via CosyVoice3 ou Voxtral."""
+    if tts_engine == "voxtral":
+        from src.engines.tts.voxtral_engine import VoxtralEngine as EngineClass
+    else:
+        from src.engines.tts.cosyvoice_engine import CosyVoiceEngine as EngineClass
 
     project_dir = manifest_path.parent
     stage_key = f"tts_{target_lang}"
@@ -317,7 +320,11 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
     model_path = Path(models_dir) / "cosyvoice3-0.5b"
 
     try:
-        engine = CosyVoiceEngine(model_dir=model_path)
+        if tts_engine == "voxtral":
+            model_path = Path(models_dir) / "voxtral-tts-4b"
+            engine = EngineClass(model_dir=model_path)
+        else:
+            engine = EngineClass(model_dir=model_path)
 
         # Extract voice reference from source audio (first 10s with speech)
         audio_path = project_dir / "extracted" / "audio_48k.wav"
@@ -649,6 +656,7 @@ def run_pipeline(
     data_dir: Path | None = None,
     project_id: str | None = None,
     from_stage: str | None = None,
+    tts_engine: str = "cosyvoice",
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
 
@@ -706,7 +714,7 @@ def run_pipeline(
     logger.info("PHASE 8 — TTS (CosyVoice3)")
     logger.info("=" * 60)
     t_tts = time.time()
-    manifest = run_tts(manifest, manifest_path, target_lang)
+    manifest = run_tts(manifest, manifest_path, target_lang, tts_engine=tts_engine)
     logger.info("TTS took %.1fs", time.time() - t_tts)
 
     # Phase 9 : Assembly

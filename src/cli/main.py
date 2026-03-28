@@ -67,6 +67,12 @@ def _setup_logging(verbose: bool) -> None:
     help="Mode de relance (ex: 'failed --lang en', 'segment seg_0042 --lang en').",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
+@click.option(
+    "--tts-engine",
+    default="cosyvoice",
+    type=click.Choice(["cosyvoice", "voxtral"]),
+    help="Moteur TTS (defaut: cosyvoice).",
+)
 def cli(
     input_video: Path,
     target_lang: str,
@@ -76,6 +82,7 @@ def cli(
     from_stage: str | None,
     retry: str | None,
     verbose: bool,
+    tts_engine: str,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -86,6 +93,7 @@ def cli(
     console.print(f"  {source_lang} -> {target_lang}")
 
     try:
+        console.print(f"  TTS engine: {tts_engine}")
         manifest = run_pipeline(
             video_path=input_video,
             source_lang=source_lang,
@@ -93,6 +101,7 @@ def cli(
             data_dir=data_dir,
             project_id=project_id,
             from_stage=from_stage,
+            tts_engine=tts_engine,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
