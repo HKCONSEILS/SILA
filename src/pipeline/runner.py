@@ -374,6 +374,18 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 )
                 tts_result_ms = tts_result.duration_ms
 
+                # Retry at speed=1.0 if TTS collapsed (< 500ms for > 2s budget)
+                if tts_result_ms < 500 and budget_ms > 2000 and est_speed > 1.1:
+                    logger.warning("TTS collapsed for %s (%dms at speed=%.2f) — retrying at speed=1.0", seg_id, tts_result_ms, est_speed)
+                    tts_result = engine.synthesize(
+                        text=text,
+                        output_path=output_path,
+                        target_lang=target_lang,
+                        speed=1.0,
+                    )
+                    tts_result_ms = tts_result.duration_ms
+                    logger.info("Retry result: %dms", tts_result_ms)
+
             # Time-stretch if needed
             budget_ms = trans["timing_budget_ms"]
             stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
