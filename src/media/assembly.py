@@ -64,8 +64,10 @@ def assemble_segments(
 
         chunk = audio[:seg_length]
 
-        # Crossfade entrant
-        if crossfade_samples > 0 and start_sample > 0:
+        # Crossfade ONLY on actual overlap with previous segment content
+        # (not on every segment — that would truncate the start of each phrase)
+        has_content_before = np.any(timeline[start_sample:min(start_sample + crossfade_samples, end_sample)] != 0)
+        if crossfade_samples > 0 and has_content_before:
             fade_len = min(crossfade_samples, seg_length)
             fade_in = np.linspace(0.0, 1.0, fade_len, dtype=np.float32)
             chunk[:fade_len] *= fade_in
