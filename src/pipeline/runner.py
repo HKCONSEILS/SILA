@@ -370,11 +370,21 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
             budget_ms = trans["timing_budget_ms"]
             max_chars = calc_max_chars(budget_ms, target_lang)
 
+            # Skip rewrite for short-budget segments (CosyVoice overhead ~3-4s)
+            REWRITE_MIN_BUDGET_MS = 7000
+            if budget_ms < REWRITE_MIN_BUDGET_MS:
+                trans["timing_fit"] = "skip_short_budget"
+                trans["rewrite_skipped"] = True
+                trans["rewrite_reason"] = "budget_too_short"
+                logger.info("Skip rewrite %s: budget %dms < %dms", seg_id, budget_ms, REWRITE_MIN_BUDGET_MS)
+                continue
+
             # Classify using text-based timing fit
             fit = classify_timing_fit_text(text, budget_ms, target_lang)
 
             if fit == TimingFitStatus.FIT_OK:
                 trans["timing_fit"] = "fit_ok"
+                trans["rewrite_reason"] = "text_fits"
                 continue
 
             # Rewrite BOTH rewrite_needed AND review_required
