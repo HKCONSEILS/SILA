@@ -1,7 +1,7 @@
 """Wrapper pyrubberband pour le time-stretching.
 
-Voir MASTERPLAN.md §3.1 — pyrubberband, max ratio 1.25x.
-Principe P2 : cascade de duree — time-stretch en dernier recours.
+Voir MASTERPLAN.md v1.3.0 — qualite-first.
+Stretch max 1.10x (acceleration), slow-down min 0.85x (ralentissement).
 """
 
 from __future__ import annotations
@@ -11,7 +11,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-MAX_STRETCH_RATIO = 1.50
+MAX_STRETCH_RATIO = 1.10   # acceleration max (qualite-first)
+MIN_SLOWDOWN_RATIO = 0.85  # ralentissement max
 
 
 def time_stretch(
@@ -20,27 +21,26 @@ def time_stretch(
     ratio: float,
     sample_rate: int = 48000,
 ) -> Path:
-    """Applique un time-stretch a un fichier audio.
-
-    Voir MASTERPLAN.md §6.1 Phase 8.3 — time-stretch <= 1.25x.
-    Le suffixe _adj est ajoute par convention (§11.3).
+    """Applique un time-stretch (acceleration ou ralentissement).
 
     Args:
         input_path: Fichier WAV source.
-        output_path: Fichier WAV de sortie (suffixe _adj).
-        ratio: Facteur de stretch (> 1.0 = ralentir, < 1.0 = accelerer).
-        sample_rate: Frequence d'echantillonnage.
+        output_path: Fichier WAV de sortie.
+        ratio: Facteur (> 1.0 = accelerer, < 1.0 = ralentir).
 
     Returns:
         Chemin vers le fichier stretche.
 
     Raises:
-        ValueError: Si le ratio depasse MAX_STRETCH_RATIO.
+        ValueError: Si le ratio depasse les limites.
     """
     if ratio > MAX_STRETCH_RATIO:
         raise ValueError(
-            f"Stretch ratio {ratio:.3f} exceeds max {MAX_STRETCH_RATIO}. "
-            "Voir MASTERPLAN.md §6.1 Phase 8.4 — review_required."
+            f"Stretch ratio {ratio:.3f} exceeds max {MAX_STRETCH_RATIO}."
+        )
+    if ratio < MIN_SLOWDOWN_RATIO:
+        raise ValueError(
+            f"Slowdown ratio {ratio:.3f} below min {MIN_SLOWDOWN_RATIO}."
         )
 
     import numpy as np

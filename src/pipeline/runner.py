@@ -25,7 +25,7 @@ from src.core.manifest import (
 )
 from src.core.models import Segment, StageStatus
 from src.core.segment import build_segments_from_words
-from src.core.timing import compute_stretch_ratio
+from src.core.timing import compute_stretch_ratio, calc_max_chars, classify_timing_fit_text, MAX_SPEED_RATIO, MIN_SLOWDOWN_RATIO
 from src.media.ffmpeg import extract_audio, loudnorm, probe_video, remux
 from src.media.srt import generate_srt
 
@@ -294,9 +294,12 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
 
 
 def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 7 : Reecriture contrainte LLM pour segments trop longs."""
+    """Phase 7 : Reecriture contrainte LLM — qualite-first.
+
+    Reecrit TOUS les segments dont le texte depasse max_chars (REWRITE_NEEDED
+    et REVIEW_REQUIRED). Utilise calc_max_chars pour calculer la cible.
+    """
     from src.engines.rewrite.llm_rewrite_engine import LLMRewriteEngine
-    from src.core.timing import classify_timing_fit, TIMING_FIT_TOLERANCE
     from src.core.models import TimingFitStatus
 
     project_dir = manifest_path.parent
@@ -322,21 +325,19 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
             seg_id = trans["segment_id"]
             text = trans["translated_text"]
             budget_ms = trans["timing_budget_ms"]
+            max_chars = calc_max_chars(budget_ms, target_lang)
 
-            # Estimate if rewrite is needed: ~15 chars/s for English TTS
-            est_duration_ms = len(text) / 15.0 * 1000
-            fit = classify_timing_fit(int(est_duration_ms), budget_ms)
+            # Classify using text-based timing fit
+            fit = classify_timing_fit_text(text, budget_ms, target_lang)
 
             if fit == TimingFitStatus.FIT_OK:
-                continue  # No rewrite needed
+                trans["timing_fit"] = "fit_ok"
+                continue
 
-            if fit == TimingFitStatus.REVIEW_REQUIRED:
-                logger.info("Rewrite skip %s: review_required (est %dms >> %dms budget)", seg_id, int(est_duration_ms), budget_ms)
-                continue  # Too far gone, don't rewrite
-
-            # fit == REWRITE_NEEDED — do the rewrite
-            max_chars = int(budget_ms / 1000 * 15)  # ~15 chars/s target
-            logger.info("Rewrite [%d/%d] %s: %d chars -> max %d chars", i + 1, len(translations), seg_id, len(text), max_chars)
+            # Rewrite BOTH rewrite_needed AND review_required
+            tag = "REWRITE" if fit == TimingFitStatus.REWRITE_NEEDED else "REVIEW+REWRITE"
+            logger.info("%s [%d/%d] %s: %d chars -> max %d chars (budget %dms)",
+                        tag, i + 1, len(translations), seg_id, len(text), max_chars, budget_ms)
 
             result = engine.rewrite(
                 text=text,
@@ -348,12 +349,18 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
             if len(result.text) < len(text):
                 saved = len(text) - len(result.text)
                 chars_saved += saved
-                trans["translated_text"] = result.text
                 trans["original_text"] = text
+                trans["translated_text"] = result.text
                 trans["rewritten"] = True
                 rewrite_count += 1
-                logger.info("Rewrite %s: %d -> %d chars (-%d)", seg_id, len(text), len(result.text), saved)
+
+                # Reclassify after rewrite
+                new_fit = classify_timing_fit_text(result.text, budget_ms, target_lang)
+                trans["timing_fit"] = new_fit.value
+                logger.info("Rewrite %s: %d -> %d chars (-%d) — %s",
+                            seg_id, len(text), len(result.text), saved, new_fit.value)
             else:
+                trans["timing_fit"] = "review_required"
                 logger.info("Rewrite %s: no reduction (%d -> %d chars)", seg_id, len(text), len(result.text))
 
         engine.close()
@@ -486,7 +493,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
 
                 else:
                     # P2: regenerate with exact speed (no margin — CosyVoice is super-linear)
-                    speed_p2 = min(2.0, speed_exact)
+                    speed_p2 = min(MAX_SPEED_RATIO, speed_exact)
                     logger.info("TTS P2 [%d/%d] %s (speed=%.2f, P1 was %dms / %dms budget)", i + 1, len(translations), seg_id, speed_p2, p1_ms, budget_ms)
 
                     p2_path = tts_dir / f"{seg_id}_p2.wav"
@@ -543,6 +550,22 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                         seg_id, stretch_ratio, MAX_STRETCH_RATIO,
                     )
 
+            # --- Slow-down stretch if TTS is too short ---
+            slowdown_applied = False
+            if tts_result_ms < budget_ms * 0.85 and tts_result_ms > 0:
+                slowdown_ratio = tts_result_ms / budget_ms
+                if slowdown_ratio >= MIN_SLOWDOWN_RATIO:
+                    from src.media.rubberband import time_stretch as rb_stretch, MIN_SLOWDOWN_RATIO as RB_MIN
+                    slow_path = tts_dir / f"{seg_id}_slow.wav"
+                    try:
+                        rb_stretch(final_path, slow_path, slowdown_ratio)
+                        final_path = slow_path
+                        slowdown_applied = True
+                        tts_result_ms = budget_ms  # After slowdown, matches budget
+                        logger.info("Slow-down %s: ratio %.3f (%dms -> %dms)", seg_id, slowdown_ratio, tts_result_ms, budget_ms)
+                    except Exception as e:
+                        logger.warning("Slow-down failed for %s: %s", seg_id, e)
+
             tts_outputs.append({
                 "segment_id": seg_id,
                 "audio_path": str(final_path),
@@ -552,6 +575,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "timing_budget_ms": budget_ms,
                 "stretch_ratio": round(stretch_ratio, 3),
                 "stretch_applied": stretch_applied,
+                "slowdown_applied": slowdown_applied,
             })
 
         engine.unload()
