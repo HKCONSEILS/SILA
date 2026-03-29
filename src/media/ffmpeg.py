@@ -166,12 +166,9 @@ def loudnorm(
         # Check for -inf values (happens with mostly-silent audio)
         has_inf = any("inf" in str(v).lower() for v in stats.values())
         if has_inf:
-            logger.warning("Loudnorm: measured values contain -inf (silent audio), using 1-pass")
-            _run_ffmpeg(
-                ["-i", str(input_path), "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11",
-                 "-ar", "48000", "-ac", "1", str(output_path)],
-                description="loudnorm-1pass-fallback",
-            )
+            logger.warning("Loudnorm: measured values contain -inf (mostly silent audio), copying as-is")
+            import shutil
+            shutil.copy2(str(input_path), str(output_path))
             return output_path
         # Pass 2: correct with measured values
         af = (
