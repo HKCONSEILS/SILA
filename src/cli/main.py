@@ -37,8 +37,13 @@ def _setup_logging(verbose: bool) -> None:
 )
 @click.option(
     "--target-lang",
-    required=True,
-    help="Code ISO 639-1 de la langue cible (ex: en, es, fr).",
+    default=None,
+    help="Code ISO 639-1 de la langue cible (ex: en). Alias pour --target-langs avec 1 langue.",
+)
+@click.option(
+    "--target-langs",
+    default=None,
+    help="Langues cibles separees par virgule (ex: en,es,de). Prioritaire sur --target-lang.",
 )
 @click.option(
     "--source-lang",
@@ -77,7 +82,8 @@ def _setup_logging(verbose: bool) -> None:
 )
 def cli(
     input_video: Path,
-    target_lang: str,
+    target_lang: str | None,
+    target_langs: str | None,
     source_lang: str,
     data_dir: Path,
     project_id: str | None,
@@ -94,7 +100,16 @@ def cli(
 
     console.print(f"[bold blue]SILA[/bold blue] — Pipeline V1", highlight=False)
     console.print(f"  Video: {input_video}")
-    console.print(f"  {source_lang} -> {target_lang}")
+    # Resolve target languages
+    if target_langs:
+        langs = [l.strip() for l in target_langs.split(",")]
+    elif target_lang:
+        langs = [target_lang]
+    else:
+        console.print("[bold red]Error[/bold red]: --target-lang or --target-langs required")
+        sys.exit(1)
+    target_lang = langs[0]  # For backward compat in pipeline signature
+    console.print(f"  {source_lang} -> {', '.join(langs)}")
 
     try:
         if phrase_aware:
@@ -108,6 +123,7 @@ def cli(
             video_path=input_video,
             source_lang=source_lang,
             target_lang=target_lang,
+            target_langs=langs,
             data_dir=data_dir,
             project_id=project_id,
             from_stage=from_stage,
