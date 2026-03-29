@@ -169,7 +169,7 @@ def _merge_short_segments(segments: list[Segment]) -> list[Segment]:
 
     merged: list[Segment] = [segments[0]]
     for seg in segments[1:]:
-        if seg.duration_ms < MIN_BUDGET_EFFECTIVE_MS and merged:
+        if seg.duration_ms < MIN_SEGMENT_DURATION_MS and merged:
             prev = merged[-1]
             # Guard: don't merge if combined would exceed hard cap
             if prev.duration_ms + seg.duration_ms > HARD_CAP_DURATION_MS:
