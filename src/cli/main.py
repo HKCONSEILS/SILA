@@ -100,7 +100,7 @@ def cli(
         if phrase_aware:
             import os
             os.environ["SILA_PHRASE_AWARE"] = "1"
-            console.print("  Phrase-aware: ENABLED")')
+            console.print("  Phrase-aware: ENABLED")
         console.print(f"  TTS engine: {tts_engine}")
         if demucs:
             console.print("  Demucs: ENABLED")
