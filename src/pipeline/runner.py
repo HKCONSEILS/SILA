@@ -625,6 +625,13 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                     except Exception as e:
                         logger.warning("Slow-down failed for %s: %s", seg_id, e)
 
+            # Compute TTS overhead metrics
+            from src.core.timing import NATURAL_SPEECH_RATES
+            debit = NATURAL_SPEECH_RATES.get(target_lang, 10)
+            tts_input_chars = len(text)
+            theoretical_ms = int((tts_input_chars / debit) * 1000)
+            tts_overhead_ms = tts_result_ms - theoretical_ms
+
             tts_outputs.append({
                 "segment_id": seg_id,
                 "audio_path": str(final_path),
@@ -635,6 +642,10 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "stretch_ratio": round(stretch_ratio, 3),
                 "stretch_applied": stretch_applied,
                 "slowdown_applied": slowdown_applied,
+                "tts_input_chars": tts_input_chars,
+                "tts_input_text": text[:200],
+                "tts_overhead_ms": tts_overhead_ms,
+                "rewrite_reason": trans.get("rewrite_reason"),
             })
 
         engine.unload()
