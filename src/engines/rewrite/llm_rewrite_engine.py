@@ -1,13 +1,15 @@
-"""LLM rewrite engine — Phase 7 (reecriture contrainte).
+"""LLM rewrite engine — Phase 7 (reecriture contrainte qualite-first).
 
-Voir MASTERPLAN.md §6.1 Phase 7 — reecriture contrainte LLM.
-Utilise Qwen3.5-27B sur LXC 225 via API OpenAI-compatible (completions).
+Utilise Qwen3.5-27B sur LXC 225 via API completions.
+Strategie : 2 tentatives avec max_tokens croissant. Si le modele
+pense trop, on strip <think>...</think> et on extrait la reponse.
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 
 import httpx
 
@@ -17,9 +19,8 @@ logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = (
     "Shorten this {lang} text to under {max_chars} characters. "
-    "Keep the meaning and register. Output ONLY the shortened text, nothing else.\n\n"
-    "Original: {text}\n\n"
-    "Shortened:"
+    "Keep the meaning and register. Output ONLY the shortened text, nothing else."
+    "\n\nOriginal: {text}\n\nShortened:"
 )
 
 LANG_NAMES = {
@@ -29,13 +30,13 @@ LANG_NAMES = {
 
 
 class LLMRewriteEngine(RewriterInterface):
-    """Reecriture contrainte via LLM local (API OpenAI completions)."""
+    """Reecriture contrainte via LLM (API completions, Qwen3.5-27B)."""
 
     def __init__(
         self,
         api_base: str | None = None,
         model: str | None = None,
-        timeout: float = 60.0,
+        timeout: float = 120.0,
     ):
         self.api_base = api_base or os.environ.get(
             "SILA_LLM_API_BASE", "http://192.168.1.225:8080"
@@ -54,6 +55,35 @@ class LLMRewriteEngine(RewriterInterface):
             )
         return self._client
 
+    def _extract_answer(self, raw: str) -> str:
+        """Extract the actual answer, stripping Qwen3.5 thinking."""
+        if "</think>" in raw:
+            return raw.split("</think>")[-1].strip()
+        if "<think>" in raw:
+            # Thinking started but never finished — discard all
+            before = raw.split("<think>")[0].strip()
+            if before:
+                return before
+            return ""
+        return raw.strip()
+
+    def _call_llm(self, prompt: str, max_tokens: int) -> str:
+        """Single LLM call, returns extracted answer."""
+        client = self._get_client()
+        response = client.post(
+            "/v1/completions",
+            json={
+                "model": self.model,
+                "prompt": prompt,
+                "temperature": 0.3,
+                "max_tokens": max_tokens,
+                "stop": ["Original:", "\n\nOriginal"],
+            },
+        )
+        response.raise_for_status()
+        raw = response.json()["choices"][0]["text"]
+        return self._extract_answer(raw)
+
     def rewrite(
         self,
         text: str,
@@ -62,7 +92,10 @@ class LLMRewriteEngine(RewriterInterface):
         timing_budget_ms: int,
         context: str = "",
     ) -> RewriteResult:
-        """Reecrit un texte pour le raccourcir sous max_chars."""
+        """Reecrit un texte pour le raccourcir sous max_chars.
+
+        Strategie : essai avec max_tokens=150 (rapide), puis 500 si vide.
+        """
         lang_name = LANG_NAMES.get(target_lang, target_lang)
         prompt = PROMPT_TEMPLATE.format(
             lang=lang_name,
@@ -71,24 +104,16 @@ class LLMRewriteEngine(RewriterInterface):
         )
 
         try:
-            client = self._get_client()
-            response = client.post(
-                "/v1/completions",
-                json={
-                    "model": self.model,
-                    "prompt": prompt,
-                    "temperature": 0.3,
-                    "max_tokens": max(80, max_chars),
-                    "stop": ["\n\n", "Original:"],
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
+            # Attempt 1: low max_tokens (fast, works if model responds directly)
+            rewritten = self._call_llm(prompt, max_tokens=150)
 
-            rewritten = data["choices"][0]["text"].strip()
+            # Attempt 2: higher tokens if first was empty (model was thinking)
+            if not rewritten:
+                logger.debug("Rewrite attempt 1 empty, retrying with more tokens")
+                rewritten = self._call_llm(prompt, max_tokens=600)
 
             # Clean up quotes
-            if rewritten.startswith(chr(34)) and rewritten.endswith(chr(34)):
+            if rewritten.startswith('"') and rewritten.endswith('"'):
                 rewritten = rewritten[1:-1].strip()
 
             char_count = len(rewritten)

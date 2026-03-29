@@ -346,7 +346,11 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 timing_budget_ms=budget_ms,
             )
 
-            if len(result.text) < len(text):
+            # Guard: reject empty or absurdly short rewrites (< 20% of original)
+            if len(result.text) < max(10, int(len(text) * 0.20)):
+                logger.warning("Rewrite %s: LLM returned too-short text (%d chars) — keeping original (%d chars)", seg_id, len(result.text), len(text))
+                trans["timing_fit"] = "review_required"
+            elif len(result.text) < len(text):
                 saved = len(text) - len(result.text)
                 chars_saved += saved
                 trans["original_text"] = text
