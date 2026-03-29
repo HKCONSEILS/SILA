@@ -12,7 +12,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 MAX_STRETCH_RATIO = 1.10   # acceleration max (qualite-first)
-MIN_SLOWDOWN_RATIO = 0.85  # ralentissement max
+MIN_SLOWDOWN_RATIO = 0.60  # ralentissement max
 
 
 def time_stretch(

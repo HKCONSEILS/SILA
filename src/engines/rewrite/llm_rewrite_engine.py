@@ -18,7 +18,7 @@ from src.engines.rewrite.interface import RewriterInterface, RewriteResult
 logger = logging.getLogger(__name__)
 
 PROMPT_TEMPLATE = (
-    "Shorten this {lang} text to under {max_chars} characters. "
+    "Rewrite this {lang} text in {min_chars} to {max_chars} characters. "
     "Keep the meaning and register. Output ONLY the shortened text, nothing else."
     "\n\nOriginal: {text}\n\nShortened:"
 )
@@ -97,8 +97,10 @@ class LLMRewriteEngine(RewriterInterface):
         Strategie : essai avec max_tokens=150 (rapide), puis 500 si vide.
         """
         lang_name = LANG_NAMES.get(target_lang, target_lang)
+        min_chars = int(max_chars * 0.80)
         prompt = PROMPT_TEMPLATE.format(
             lang=lang_name,
+            min_chars=min_chars,
             max_chars=max_chars,
             text=text,
         )

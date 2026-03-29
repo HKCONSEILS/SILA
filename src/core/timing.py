@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 TIMING_FIT_TOLERANCE = 0.15  # ±15% pour QC pass
 MAX_STRETCH_RATIO = 1.10     # stretch max (qualite-first, etait 1.50)
 MAX_SPEED_RATIO = 1.20       # speed TTS max (qualite-first, etait 2.0)
-MIN_SLOWDOWN_RATIO = 0.85    # ralentissement max pour combler silence
+MIN_SLOWDOWN_RATIO = 0.60    # ralentissement max pour combler silence
 
 # Debits naturels TTS par langue (chars/s a speed=1.0)
 NATURAL_SPEECH_RATES = {
