@@ -41,6 +41,15 @@ class BasicQCEngine(QCInterface):
         if abs(delta) > reference_duration_ms * 0.15:
             flags.append(f"timing_drift_{fit.value}")
 
+        # Silence detection: check RMS volume
+        import numpy as np
+        audio_data, _ = sf.read(str(audio_path), dtype="float32")
+        if audio_data.ndim > 1:
+            audio_data = audio_data[:, 0]
+        rms = float(np.sqrt(np.mean(audio_data ** 2)))
+        if rms < 0.001:
+            flags.append("silence_detected")
+
         return QCResult(
             duration_ms=actual_ms,
             timing_delta_ms=delta,
@@ -73,6 +82,18 @@ class BasicQCEngine(QCInterface):
             "status": "PASS" if measured_tp < -1.0 else "WARNING",
             "measured_dbtp": round(measured_tp, 1),
             "max_dbtp": -1.0,
+        }
+
+        # Global silence check via RMS
+        import numpy as np
+        mix_audio, _ = sf.read(str(mix_path), dtype="float32")
+        if mix_audio.ndim > 1:
+            mix_audio = mix_audio[:, 0]
+        mix_rms = float(np.sqrt(np.mean(mix_audio ** 2)))
+        checks["silence"] = {
+            "status": "PASS" if mix_rms >= 0.001 else "FAIL",
+            "rms": round(mix_rms, 6),
+            "threshold": 0.001,
         }
 
         # Duration check
