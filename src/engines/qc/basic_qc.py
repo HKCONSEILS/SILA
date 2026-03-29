@@ -86,6 +86,7 @@ class BasicQCEngine(QCInterface):
 
         # Global silence check via RMS
         import numpy as np
+        import soundfile as sf
         mix_audio, _ = sf.read(str(mix_path), dtype="float32")
         if mix_audio.ndim > 1:
             mix_audio = mix_audio[:, 0]
