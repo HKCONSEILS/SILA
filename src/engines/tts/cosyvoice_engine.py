@@ -78,6 +78,93 @@ class CosyVoiceEngine(TTSInterface):
             len(segment) / sr, audio_path, ref_path,
         )
 
+
+    def set_voice_reference_multi(self, audio_path: Path, segments: list, n_best: int = 5, max_duration_s: float = 30.0):
+        """Build voice reference from N best segments (P6 masterplan).
+
+        Selects segments by confidence and duration, concatenates into
+        a single reference file (max 30s). Fallback to single clip if
+        fewer than 3 qualifying segments.
+
+        Args:
+            audio_path: Source audio (audio_48k.wav or vocals.wav).
+            segments: List of segment dicts with start_ms, end_ms, words.
+            n_best: Number of best segments to select.
+            max_duration_s: Maximum total reference duration.
+        """
+        MIN_SEG_MS = 3000
+        MAX_SEG_MS = 12000
+        MIN_CONFIDENCE = 0.7
+
+        audio, sr = sf.read(str(audio_path), dtype="float32")
+        if audio.ndim > 1:
+            audio = audio[:, 0]
+
+        # Score and filter segments
+        candidates = []
+        for seg in segments:
+            dur_ms = seg.get("duration_ms", seg.get("end_ms", 0) - seg.get("start_ms", 0))
+            if dur_ms < MIN_SEG_MS or dur_ms > MAX_SEG_MS:
+                continue
+            if seg.get("review_flags"):
+                continue
+            words = seg.get("words", [])
+            if not words:
+                continue
+            avg_conf = sum(w.get("confidence", 0) for w in words) / len(words)
+            if avg_conf < MIN_CONFIDENCE:
+                continue
+            candidates.append((seg, avg_conf, dur_ms))
+
+        # Sort by confidence descending
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        selected = candidates[:n_best]
+
+        if len(selected) < 3:
+            logger.info("Only %d qualifying segments (need 3), falling back to single clip", len(selected))
+            # Fallback: use first 10s
+            if segments:
+                ref_start = max(0, segments[0].get("start_ms", 0) - 500)
+                ref_end = min(ref_start + 10000, len(audio) * 1000 // sr)
+            else:
+                ref_start, ref_end = 0, 10000
+            self.set_voice_reference(audio_path, start_ms=ref_start, end_ms=ref_end)
+            return len(selected)
+
+        # Sort selected by chronological order for natural flow
+        selected.sort(key=lambda x: x[0].get("start_ms", 0))
+
+        # Extract and concatenate
+        clips = []
+        total_s = 0.0
+        for seg, conf, dur_ms in selected:
+            if total_s >= max_duration_s:
+                break
+            start = int(seg.get("start_ms", 0) * sr / 1000)
+            end = min(int(seg.get("end_ms", 0) * sr / 1000), len(audio))
+            clip = audio[start:end]
+            clip_s = len(clip) / sr
+            if total_s + clip_s > max_duration_s:
+                # Trim to fit
+                remaining = max_duration_s - total_s
+                clip = clip[:int(remaining * sr)]
+                clip_s = remaining
+            clips.append(clip)
+            total_s += clip_s
+
+        ref_audio = np.concatenate(clips)
+
+        ref_dir = Path(audio_path).parent.parent / "voice_refs"
+        ref_dir.mkdir(parents=True, exist_ok=True)
+        ref_path = ref_dir / "spk_0_multi_ref.wav"
+        sf.write(str(ref_path), ref_audio, sr)
+        self._voice_ref_path = str(ref_path)
+
+        logger.info(
+            "Multi-segment voice ref: %d segments, %.1fs total -> %s",
+            len(clips), total_s, ref_path,
+        )
+        return len(clips)
     def synthesize(
         self,
         text: str,
