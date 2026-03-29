@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SILA — Masterplan v1.4.0</title>
+<title>SILA — Masterplan v1.4.2</title>
 <meta name="description" content="SILA Masterplan — Pipeline IA self-hosted de traduction et doublage vidéo multilingue. 18 sections, 14 principes, 10 briques IA, V1→V3.">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -171,73 +171,32 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
   .gtm-table{font-size:9px}
 }
 </style>
-
 <style>
-/* Markdown content styles */
-.md-content { max-width: 1060px; margin: 0 auto; padding: 24px 20px 60px; }
-.md-content h1 { font-family: 'Fira Code', monospace; font-size: 1.6rem; font-weight: 800; color: var(--text-strong); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
-.md-content h2 { font-family: 'Fira Code', monospace; font-size: 1.25rem; font-weight: 700; color: var(--text-strong); margin: 36px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light); }
-.md-content h3 { font-family: 'Fira Code', monospace; font-size: 1.05rem; font-weight: 600; color: var(--text-strong); margin: 28px 0 10px; }
-.md-content h4 { font-family: 'Fira Code', monospace; font-size: 0.95rem; font-weight: 600; color: var(--text-strong); margin: 20px 0 8px; }
-.md-content p { margin: 8px 0; line-height: 1.7; }
-.md-content ul, .md-content ol { margin: 8px 0 8px 20px; line-height: 1.7; }
-.md-content li { margin: 4px 0; }
-.md-content code { font-family: 'Fira Code', monospace; font-size: 13px; background: var(--bg-code); color: var(--text-code); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-light); }
-.md-content pre { background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; }
-.md-content pre code { background: none; border: none; padding: 0; font-size: 12px; }
-.md-content table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-.md-content th { background: var(--bg-code); color: var(--text-strong); font-family: 'Fira Code', monospace; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--border); }
-.md-content td { padding: 8px 12px; border-bottom: 1px solid var(--border-light); }
-.md-content tr:hover td { background: var(--hover-row); }
-.md-content blockquote { border-left: 3px solid var(--accent); padding: 8px 16px; margin: 12px 0; background: var(--bg-card); border-radius: 0 8px 8px 0; color: var(--text-muted); }
-.md-content strong { color: var(--text-strong); }
-.md-content em { color: #9CA3AF; }
-.md-content hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
-.md-content a { color: var(--link); }
-.md-content a:hover { text-decoration: underline; }
+.md-content{max-width:1060px;margin:0 auto;padding:24px 20px 60px}
+.md-content h1{font-family:'Fira Code',monospace;font-size:1.6rem;font-weight:800;color:var(--text-strong);margin:48px 0 16px;padding-bottom:8px;border-bottom:2px solid var(--border)}
+.md-content h2{font-family:'Fira Code',monospace;font-size:1.25rem;font-weight:700;color:var(--text-strong);margin:36px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border-light)}
+.md-content h3{font-family:'Fira Code',monospace;font-size:1.05rem;font-weight:600;color:var(--text-strong);margin:28px 0 10px}
+.md-content h4{font-family:'Fira Code',monospace;font-size:.95rem;font-weight:600;color:var(--text-strong);margin:20px 0 8px}
+.md-content p{margin:8px 0;line-height:1.7} .md-content ul,.md-content ol{margin:8px 0 8px 20px;line-height:1.7}
+.md-content li{margin:4px 0} .md-content code{font-family:'Fira Code',monospace;font-size:13px;background:var(--bg-code);color:var(--text-code);padding:2px 6px;border-radius:4px;border:1px solid var(--border-light)}
+.md-content pre{background:var(--bg-code);border:1px solid var(--border);border-radius:8px;padding:16px;overflow-x:auto;margin:12px 0} .md-content pre code{background:none;border:none;padding:0;font-size:12px}
+.md-content table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px} .md-content th{background:var(--bg-code);color:var(--text-strong);font-family:'Fira Code',monospace;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;text-align:left;border-bottom:2px solid var(--border)}
+.md-content td{padding:8px 12px;border-bottom:1px solid var(--border-light)} .md-content tr:hover td{background:var(--hover-row)}
+.md-content blockquote{border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;background:var(--bg-card);border-radius:0 8px 8px 0;color:var(--text-muted)}
+.md-content strong{color:var(--text-strong)} .md-content em{color:#9CA3AF} .md-content hr{border:none;border-top:1px solid var(--border);margin:32px 0}
+.md-content a{color:var(--link)} .md-content a:hover{text-decoration:underline}
 </style>
-
 </head>
 <body>
-
-<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button>
-<script>
-function toggleTheme(){
-  const t = document.documentElement.getAttribute('data-theme');
-  document.documentElement.setAttribute('data-theme', t === 'light' ? 'dark' : 'light');
-  localStorage.setItem('theme', t === 'light' ? 'dark' : 'light');
-}
-(function(){
-  const saved = localStorage.getItem('theme');
-  if(saved) document.documentElement.setAttribute('data-theme', saved);
-})();
-</script>
-
-
-<div class="hdr">
-  <h1 class="mono">SILA — MASTERPLAN</h1>
-  <div class="h1sub">Pipeline IA de Traduction &amp; Doublage Video Multilingue</div>
-  <div class="subtitle">Seamless International Language Automation</div>
-  <div class="hdr-badges">
-    <span class="badge badge-green badge-pill">v1.2.0</span>
-    <span class="badge badge-purple badge-pill">self-hosted</span>
-    <span class="badge badge-blue badge-pill">2026-03-28</span>
-  </div>
-  <div class="hdr-meta">
-    <span>18 sections</span>
-    <span>14 principes</span>
-    <span>10 briques IA</span>
-    <span>V1→V3</span>
-  </div>
-</div>
-
+<button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌓</button><script>function toggleTheme(){const t=document.documentElement.getAttribute("data-theme");document.documentElement.setAttribute("data-theme",t==="light"?"dark":"light");localStorage.setItem("theme",t==="light"?"dark":"light")}(function(){const s=localStorage.getItem("theme");if(s)document.documentElement.setAttribute("data-theme",s)})();</script>
+<div class="hdr"><h1 class="mono">SILA — MASTERPLAN</h1><div class="h1sub">Pipeline IA de Traduction &amp; Doublage Video Multilingue</div><div class="subtitle">Seamless International Language Automation</div><div class="hdr-badges"><span class="badge badge-green badge-pill">v1.4.2</span><span class="badge badge-purple badge-pill">self-hosted</span><span class="badge badge-blue badge-pill">2026-03-29</span></div></div>
 <div class="md-content">
 <h1 id="masterplan-pipeline-ia-de-traduction-doublage-video-multilingue">MASTERPLAN — Pipeline IA de Traduction &amp; Doublage Vidéo Multilingue</h1>
-<p><strong>Nom de code</strong> : <code>SILA — Seamless International Language Automation</code><br />
-<strong>Version du document</strong> : 1.4.0<br />
-<strong>Date</strong> : 2026-03-29<br />
-<strong>Statut</strong> : Draft — En cours de validation<br />
-<strong>Auteur</strong> : Comité d'architecture (4 experts)<br />
+<p><strong>Nom de code</strong> : <code>SILA — Seamless International Language Automation</code>
+<strong>Version du document</strong> : 1.4.2
+<strong>Date</strong> : 2026-03-29
+<strong>Statut</strong> : Draft — En cours de validation
+<strong>Auteur</strong> : Comité d'architecture (4 experts)
 <strong>Licence projet</strong> : À définir (self-hosted, usage interne ou commercial)</p>
 <hr />
 <h2 id="table-des-matieres">Table des matières</h2>
@@ -265,10 +224,10 @@ function toggleTheme(){
 <hr />
 <h2 id="0-comment-utiliser-ce-document">0. Comment utiliser ce document</h2>
 <p>Ce masterplan est la <strong>source de vérité unique</strong> du projet. Toute décision d'architecture, de stack ou de workflow doit y être référencée ou en être dérivée.</p>
-<p><strong>Règles de gouvernance :</strong><br />
-- Toute modification de ce document doit être versionnée (Git) avec un message de commit explicite.<br />
-- Les décisions verrouillées (marquées ✅) ne peuvent être modifiées que par une revue explicite du comité, avec justification documentée dans la section ADR.<br />
-- Les sections marquées 🔄 sont en évaluation et seront verrouillées avant l'implémentation de la version concernée.<br />
+<p><strong>Règles de gouvernance :</strong>
+- Toute modification de ce document doit être versionnée (Git) avec un message de commit explicite.
+- Les décisions verrouillées (marquées ✅) ne peuvent être modifiées que par une revue explicite du comité, avec justification documentée dans la section ADR.
+- Les sections marquées 🔄 sont en évaluation et seront verrouillées avant l'implémentation de la version concernée.
 - Ce document est en Markdown pour être versionné dans le repo, relu en PR, et annoté par les contributeurs.</p>
 <hr />
 <h2 id="1-vision-et-perimetre">1. Vision et périmètre</h2>
@@ -711,7 +670,7 @@ function toggleTheme(){
 <h2 id="5-architecture-logicielle">5. Architecture logicielle</h2>
 <h3 id="51-vue-densemble-par-version">5.1 Vue d'ensemble par version</h3>
 <h4 id="v1-script-sequentiel">V1 — Script séquentiel</h4>
-<pre class="codehilite"><code>CLI (Python)
+<pre><code>CLI (Python)
   └── Pipeline séquentiel
         ├── extract_audio()
         ├── separate_vocals()    → Demucs v4 [optionnel, flag --demucs]
@@ -727,9 +686,8 @@ function toggleTheme(){
   └── Manifeste JSON (lecture/écriture à chaque étape)
   └── Filesystem local (artefacts)
 </code></pre>
-
 <h4 id="v2-api-workers">V2 — API + Workers</h4>
-<pre class="codehilite"><code>┌─────────────────┐     ┌──────────────┐
+<pre><code>┌─────────────────┐     ┌──────────────┐
 │  FastAPI         │────▶│  PostgreSQL   │
 │  (API REST)      │     │  (JSONB)      │
 └────────┬────────┘     └──────────────┘
@@ -746,9 +704,8 @@ function toggleTheme(){
  Media     Speech     Translate  TTS        PostProd
  (CPU)     (GPU)      (CPU)      (GPU)      (CPU)
 </code></pre>
-
 <h4 id="v3-orchestration-durable">V3 — Orchestration durable</h4>
-<pre class="codehilite"><code>┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
+<pre><code>┌─────────────────┐     ┌──────────────┐     ┌──────────────┐
 │  FastAPI + UI    │────▶│  PostgreSQL   │     │  Prometheus   │
 │  (Review UI)     │     │  (JSONB)      │     │  + Grafana    │
 └────────┬────────┘     └──────────────┘     └──────────────┘
@@ -764,7 +721,6 @@ function toggleTheme(){
  Worker    Worker     Worker     Worker     Worker     Worker
  Media     Speech     Translate  TTS        PostProd   LipSync
 </code></pre>
-
 <h3 id="52-frontieres-entre-domaines">5.2 Frontières entre domaines</h3>
 <table>
 <thead>
@@ -794,7 +750,7 @@ function toggleTheme(){
 </table>
 <h3 id="53-interfaces-de-tache-contrats">5.3 Interfaces de tâche (contrats)</h3>
 <p>Chaque brique IA est encapsulée derrière une interface abstraite :</p>
-<pre class="codehilite"><code>ASR_Interface:
+<pre><code>ASR_Interface:
   input:  audio_path (WAV 16kHz mono)
   output: TranscriptResult { words[], speakers[], language }
 
@@ -814,11 +770,10 @@ QC_Interface:
   input:  audio_path, reference_duration_ms
   output: QCResult { utmos_score, duration_ms, timing_delta_ms, flags[] }
 </code></pre>
-
 <hr />
 <h2 id="6-workflow-detaille-dag-du-pipeline">6. Workflow détaillé — DAG du pipeline</h2>
 <h3 id="61-vue-densemble-du-dag">6.1 Vue d'ensemble du DAG</h3>
-<pre class="codehilite"><code>Phase 0: INGEST
+<pre><code>Phase 0: INGEST
   └── Créer projet, uploader vidéo, ffprobe, écrire manifeste initial
 
 Phase 1: EXTRACTION (séquentiel, une seule fois)
@@ -888,7 +843,6 @@ Phase 11: EXPORT (parallèle par langue)
 Phase 12: LIP-SYNC [V3, optionnel, hors chemin critique]
   └── 12.1  Uniquement sur segments flaggés face-caméra avec désync visible
 </code></pre>
-
 <h3 id="62-regles-de-segmentation-logique">6.2 Règles de segmentation logique</h3>
 <table>
 <thead>
@@ -980,7 +934,7 @@ Phase 12: LIP-SYNC [V3, optionnel, hors chemin critique]
 <hr />
 <h2 id="7-contrats-de-donnees">7. Contrats de données</h2>
 <h3 id="71-transcript-canonique-sortie-phase-3">7.1 Transcript canonique (sortie Phase 3)</h3>
-<pre class="codehilite"><code>word_id         : int           — identifiant unique du mot
+<pre><code>word_id         : int           — identifiant unique du mot
 chunk_id        : int           — chunk technique d'origine
 speaker_id      : str           — &quot;spk_0&quot;, &quot;spk_1&quot;, ...
 source_lang     : str           — code ISO 639-1
@@ -991,9 +945,8 @@ confidence      : float         — 0.0 à 1.0
 is_overlap      : bool          — true si chevauchement avec un autre locuteur
 sentence_id     : int           — regroupement en phrases
 </code></pre>
-
 <h3 id="72-segments-logiques-sortie-phase-4">7.2 Segments logiques (sortie Phase 4)</h3>
-<pre class="codehilite"><code>segment_id          : str       — &quot;seg_0001&quot;
+<pre><code>segment_id          : str       — &quot;seg_0001&quot;
 speaker_id          : str       — &quot;spk_0&quot;
 start_ms            : int       — début exact en ms
 end_ms              : int       — fin exacte en ms
@@ -1007,9 +960,8 @@ segment_type        : str       — &quot;speech&quot; | &quot;overlap&quot; | &
 words               : list      — mots avec timestamps individuels
 review_flags        : list      — [&quot;low_confidence&quot;, &quot;overlap&quot;, ...]
 </code></pre>
-
 <h3 id="73-traductions-sortie-phase-6">7.3 Traductions (sortie Phase 6)</h3>
-<pre class="codehilite"><code>segment_id          : str
+<pre><code>segment_id          : str
 target_lang         : str       — code ISO 639-1 cible
 translated_text     : str       — texte traduit
 alt_text_short      : str|null  — variante courte (si rewrite_needed)
@@ -1021,9 +973,8 @@ glossary_hits       : list      — termes du glossaire utilisés
 mt_engine           : str       — &quot;nllb-200-3.3b&quot; | &quot;madlad-400&quot;
 mt_model_version    : str       — version exacte du modèle
 </code></pre>
-
 <h3 id="74-sorties-tts-sortie-phase-8">7.4 Sorties TTS (sortie Phase 8)</h3>
-<pre class="codehilite"><code>segment_id          : str
+<pre><code>segment_id          : str
 target_lang         : str
 voice_profile_id    : str
 tts_engine          : str       — &quot;cosyvoice-3.0-0.5b&quot; | &quot;qwen3-tts-1.7b&quot;
@@ -1043,7 +994,6 @@ tts_overhead_ms     : int       — duration_ms - (tts_input_chars / debit_chars
 rewrite_skipped     : bool      — true si le rewrite a été skippé (budget &lt; REWRITE_MIN_BUDGET_MS)
 rewrite_reason      : str|null  — null | &quot;budget_too_short&quot; | &quot;text_fits&quot; | &quot;rewritten&quot; | &quot;review_required&quot;
 </code></pre>
-
 <hr />
 <h2 id="8-manifeste-central">8. Manifeste central</h2>
 <h3 id="81-principes">8.1 Principes</h3>
@@ -1055,7 +1005,7 @@ rewrite_reason      : str|null  — null | &quot;budget_too_short&quot; | &quot;
 <li>Nommage déterministe des artefacts : <code>{project_id}/{stage}/{lang}/seg_{index:04d}.wav</code>.</li>
 </ul>
 <h3 id="82-structure-du-manifeste-v1">8.2 Structure du manifeste V1</h3>
-<pre class="codehilite"><code class="language-json">{
+<pre><code class="language-json">{
   &quot;manifest_version&quot;: 1,
   &quot;pipeline_version&quot;: &quot;0.1.0&quot;,
   &quot;created_at&quot;: &quot;2026-03-22T14:30:00Z&quot;,
@@ -1179,10 +1129,9 @@ rewrite_reason      : str|null  — null | &quot;budget_too_short&quot; | &quot;
   }
 }
 </code></pre>
-
 <hr />
 <h2 id="9-structure-du-monorepo">9. Structure du monorepo</h2>
-<pre class="codehilite"><code>SILA/
+<pre><code>SILA/
 │
 ├── README.md
 ├── MASTERPLAN.md                    ← Ce document
@@ -1356,7 +1305,6 @@ rewrite_reason      : str|null  — null | &quot;budget_too_short&quot; | &quot;
         ├── adding-a-language.md
         └── adding-a-tts-engine.md
 </code></pre>
-
 <hr />
 <h2 id="10-architecture-materielle">10. Architecture matérielle</h2>
 <h3 id="101-profils-gpu">10.1 Profils GPU</h3>
@@ -1491,7 +1439,7 @@ rewrite_reason      : str|null  — null | &quot;budget_too_short&quot; | &quot;
 <hr />
 <h2 id="11-infrastructure-et-deploiement">11. Infrastructure et déploiement</h2>
 <h3 id="111-docker-compose-v1-cli-mono-container">11.1 Docker Compose V1 (CLI mono-container)</h3>
-<pre class="codehilite"><code class="language-yaml"># docker-compose.v1.yml
+<pre><code class="language-yaml"># docker-compose.v1.yml
 version: '3.8'
 
 services:
@@ -1519,9 +1467,8 @@ services:
         --target-lang en
         --config /app/configs/default.yaml
 </code></pre>
-
 <h3 id="112-docker-compose-v2-api-workers">11.2 Docker Compose V2 (API + Workers)</h3>
-<pre class="codehilite"><code class="language-yaml"># docker-compose.v2.yml
+<pre><code class="language-yaml"># docker-compose.v2.yml
 version: '3.8'
 
 services:
@@ -1635,9 +1582,8 @@ services:
 volumes:
   pgdata:
 </code></pre>
-
 <h3 id="113-conventions-de-nommage-des-artefacts">11.3 Conventions de nommage des artefacts</h3>
-<pre class="codehilite"><code>data/projects/{project_id}/source/input.mp4
+<pre><code>data/projects/{project_id}/source/input.mp4
 data/projects/{project_id}/extracted/audio_48k.wav
 data/projects/{project_id}/stems/voice.wav
 data/projects/{project_id}/stems/music.wav
@@ -1653,12 +1599,11 @@ data/projects/{project_id}/exports/{lang}.srt
 data/projects/{project_id}/manifest.json
 data/projects/{project_id}/qc_report.json
 </code></pre>
-
 <p><strong>Règles</strong> : nommage déterministe, index 4 chiffres paddés, suffixe <code>_adj</code> pour les fichiers post-stretch, pas de modification in-place.</p>
 <hr />
 <h2 id="12-strategie-de-gestion-derreurs-et-reprise">12. Stratégie de gestion d'erreurs et reprise</h2>
 <h3 id="121-cle-didempotence">12.1 Clé d'idempotence</h3>
-<pre class="codehilite"><code>idempotency_key = sha256(
+<pre><code>idempotency_key = sha256(
   project_id +
   stage_name +
   target_lang +
@@ -1668,7 +1613,6 @@ data/projects/{project_id}/qc_report.json
   input_artifact_hash
 )
 </code></pre>
-
 <p>Avant chaque exécution, vérifier si un artefact avec cette clé existe déjà et est valide → skip.</p>
 <h3 id="122-politique-de-retry">12.2 Politique de retry</h3>
 <table>
@@ -1741,8 +1685,8 @@ data/projects/{project_id}/qc_report.json
 </tbody>
 </table>
 <h3 id="124-validation-avant-export">12.4 Validation avant export</h3>
-<p>Avant l'export final, vérifier que 100% des segments ont un statut <code>completed</code> pour la langue. Si non :<br />
-- Si &lt; 5% en <code>failed</code> → proposer un export partiel (segments failed = silence).<br />
+<p>Avant l'export final, vérifier que 100% des segments ont un statut <code>completed</code> pour la langue. Si non :
+- Si &lt; 5% en <code>failed</code> → proposer un export partiel (segments failed = silence).
 - Si &gt; 5% en <code>failed</code> → bloquer l'export, signaler à l'opérateur.</p>
 <hr />
 <h2 id="13-kpi-et-quality-gates">13. KPI et quality gates</h2>
@@ -2584,15 +2528,54 @@ data/projects/{project_id}/qc_report.json
 <li><strong>Constats clés</strong> :</li>
 <li><strong>Demucs</strong> : gain qualitatif net sur vidéos avec musique (0 collapse TTS), mais dégradation sur vidéos propres (-20 points QC). → Rendu optionnel.</li>
 <li><strong>Phrase-aware</strong> : crée plus de segments plus courts, dégradant systématiquement le QC. L'overhead CosyVoice (~3-4s minimum) rend les segments &lt; 6s impossibles à fitter. → Désactivé par défaut.</li>
-<li><strong>Meilleure config V1</strong> : Quality-first sans Demucs sans phrase-aware = 60% / 59%.</li>
-<li><strong>Bottleneck identifié</strong> : le contrôle de durée CosyVoice, pas la segmentation ni le rewrite.</li>
+<li><strong>Meilleure config V1</strong> : Quality-first, speed contraint [0.95-1.05], seed fixe, sans Demucs, sans phrase-aware = 80% (test_002) / 65% (test_003).</li>
+<li><strong>Bottleneck identifié</strong> : le contrôle de durée TTS (aucun modèle testé — CosyVoice, Qwen3-TTS — n'offre de paramètre target_duration_ms natif). IndexTTS-2 identifié comme challenger V2 (duration control natif).</li>
+<li><strong>Bug critique découvert</strong> : CosyVoice avec torch cassé générait du silence WAV de la bonne durée. Le QC ne vérifiait que la durée, pas le contenu audio. Les résultats antérieurs (60%/59%) étaient sur du silence. Le fix torch + ajout de silence detection dans le QC a corrigé le problème.</li>
 <li><strong>Décisions</strong> :</li>
 <li>P9 révisé : plancher effectif 6s, distribution cible 6-9s (était 4-8s)</li>
 <li><code>PHRASE_SEARCH_THRESHOLD_MS</code> = 9000 (était 8000), <code>MIN_BUDGET_EFFECTIVE_MS</code> = 6000 (nouveau)</li>
 <li><code>REWRITE_MIN_BUDGET_MS</code> = 7000 : skip rewrite si budget &lt; 7s</li>
 <li>TTS logging enrichi : <code>tts_overhead_ms</code>, <code>rewrite_reason</code> dans le manifeste</li>
 <li>Prochaine priorité : assembly + export (phases 9-11) pour pipeline bout-en-bout</li>
-<li><strong>Conséquence</strong> : le QC à 60% est suffisant pour un premier export écoutable. L'amélioration du QC passe désormais par le contrôle de durée TTS (investigation CosyVoice / benchmark Qwen3-TTS), pas par la segmentation.</li>
+<li><strong>Conséquence</strong> : V1 tagué à 80%/65% QC avec audio réel. L'amélioration vers 85%+ passe par un moteur TTS avec duration control natif (IndexTTS-2 prioritaire en V2). Le speed adaptatif (0.80-1.20) améliore le QC chiffré mais détruit la cohérence perceptive — contraint à [0.95-1.05] pour la V1 finale.</li>
+</ul>
+<h3 id="adr-010-resultats-finaux-v1-et-lecons-apprises-mars-2026">ADR-010 : Résultats finaux V1 et leçons apprises (mars 2026)</h3>
+<ul>
+<li><strong>Date</strong> : 2026-03-29</li>
+<li><strong>Contexte</strong> : Pipeline V1 bout-en-bout (Phase 0→11) livré et validé par écoute subjective. Tag v1.0.0.</li>
+<li><strong>Résultats QC finaux (segments dans budget ±15%)</strong> :</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Config</th>
+<th>test_002 (52s)</th>
+<th>test_003 (356s)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Speed adaptatif [0.80-1.20]</td>
+<td>80%</td>
+<td>88%</td>
+</tr>
+<tr>
+<td>Speed contraint [0.95-1.05] (V1 final)</td>
+<td>80%</td>
+<td>65%</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><strong>Bug critique — torch cassé</strong> : CosyVoice avec une installation torch défectueuse générait des WAV de la bonne durée mais remplis de silence. Le QC ne vérifiait que la durée → les résultats historiques (20% → 60%) étaient calculés sur du silence. Le fix torch a révélé que le speed adaptatif et le retry loop fonctionnent réellement (80%/88%). Fix QC ajouté : silence detection par segment (RMS &gt; seuil) et global (volumedetect).</li>
+<li><strong>Compromis cohérence vs timing</strong> : le speed [0.80-1.20] donne un meilleur QC chiffré (88%) mais un timbre incohérent entre segments. Le speed [0.95-1.05] donne un QC inférieur (65%) mais un timbre uniforme. La cohérence perceptive a été jugée prioritaire (P15).</li>
+<li><strong>Écoute subjective</strong> : audio présent et cohérent en timbre. Rythme parfois haché (fragments courts). Qualité "démo technique", pas "doublage broadcast". Acceptable pour le jalon V1 "Proof of Value".</li>
+<li><strong>Leçons</strong> :</li>
+<li>Toujours vérifier le contenu audio (pas seulement la durée) dans le QC.</li>
+<li>Le speed TTS a un impact direct sur le timbre perçu — le contraindre étroitement.</li>
+<li>Le voice profile à 1 clip de 10s est insuffisant. V2 doit implémenter P6 (embedding moyen sur top-10 segments).</li>
+<li>Le prompt de rewrite doit cibler l'oralité, pas la compression textuelle.</li>
+<li><strong>Décision</strong> : V1 tagué. Prochaines priorités V2 : benchmark TTS avec duration control (IndexTTS-2), voice profile multi-segment (P6), rewrite LLM local (Ministral 3 8B), multi-locuteurs, multi-langues.</li>
 </ul>
 <hr />
 <p><em>Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.</em></p>

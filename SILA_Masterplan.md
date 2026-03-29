@@ -1,7 +1,7 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.4.0
+**Version du document** : 1.4.2
 **Date** : 2026-03-29
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
@@ -1363,15 +1363,36 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Constats clés** :
   - **Demucs** : gain qualitatif net sur vidéos avec musique (0 collapse TTS), mais dégradation sur vidéos propres (-20 points QC). → Rendu optionnel.
   - **Phrase-aware** : crée plus de segments plus courts, dégradant systématiquement le QC. L'overhead CosyVoice (~3-4s minimum) rend les segments < 6s impossibles à fitter. → Désactivé par défaut.
-  - **Meilleure config V1** : Quality-first sans Demucs sans phrase-aware = 60% / 59%.
-  - **Bottleneck identifié** : le contrôle de durée CosyVoice, pas la segmentation ni le rewrite.
+  - **Meilleure config V1** : Quality-first, speed contraint [0.95-1.05], seed fixe, sans Demucs, sans phrase-aware = 80% (test_002) / 65% (test_003).
+  - **Bottleneck identifié** : le contrôle de durée TTS (aucun modèle testé — CosyVoice, Qwen3-TTS — n'offre de paramètre target_duration_ms natif). IndexTTS-2 identifié comme challenger V2 (duration control natif).
+  - **Bug critique découvert** : CosyVoice avec torch cassé générait du silence WAV de la bonne durée. Le QC ne vérifiait que la durée, pas le contenu audio. Les résultats antérieurs (60%/59%) étaient sur du silence. Le fix torch + ajout de silence detection dans le QC a corrigé le problème.
 - **Décisions** :
   - P9 révisé : plancher effectif 6s, distribution cible 6-9s (était 4-8s)
   - `PHRASE_SEARCH_THRESHOLD_MS` = 9000 (était 8000), `MIN_BUDGET_EFFECTIVE_MS` = 6000 (nouveau)
   - `REWRITE_MIN_BUDGET_MS` = 7000 : skip rewrite si budget < 7s
   - TTS logging enrichi : `tts_overhead_ms`, `rewrite_reason` dans le manifeste
   - Prochaine priorité : assembly + export (phases 9-11) pour pipeline bout-en-bout
-- **Conséquence** : le QC à 60% est suffisant pour un premier export écoutable. L'amélioration du QC passe désormais par le contrôle de durée TTS (investigation CosyVoice / benchmark Qwen3-TTS), pas par la segmentation.
+- **Conséquence** : V1 tagué à 80%/65% QC avec audio réel. L'amélioration vers 85%+ passe par un moteur TTS avec duration control natif (IndexTTS-2 prioritaire en V2). Le speed adaptatif (0.80-1.20) améliore le QC chiffré mais détruit la cohérence perceptive — contraint à [0.95-1.05] pour la V1 finale.
+
+### ADR-010 : Résultats finaux V1 et leçons apprises (mars 2026)
+- **Date** : 2026-03-29
+- **Contexte** : Pipeline V1 bout-en-bout (Phase 0→11) livré et validé par écoute subjective. Tag v1.0.0.
+- **Résultats QC finaux (segments dans budget ±15%)** :
+
+| Config | test_002 (52s) | test_003 (356s) |
+|---|---|---|
+| Speed adaptatif [0.80-1.20] | 80% | 88% |
+| Speed contraint [0.95-1.05] (V1 final) | 80% | 65% |
+
+- **Bug critique — torch cassé** : CosyVoice avec une installation torch défectueuse générait des WAV de la bonne durée mais remplis de silence. Le QC ne vérifiait que la durée → les résultats historiques (20% → 60%) étaient calculés sur du silence. Le fix torch a révélé que le speed adaptatif et le retry loop fonctionnent réellement (80%/88%). Fix QC ajouté : silence detection par segment (RMS > seuil) et global (volumedetect).
+- **Compromis cohérence vs timing** : le speed [0.80-1.20] donne un meilleur QC chiffré (88%) mais un timbre incohérent entre segments. Le speed [0.95-1.05] donne un QC inférieur (65%) mais un timbre uniforme. La cohérence perceptive a été jugée prioritaire (P15).
+- **Écoute subjective** : audio présent et cohérent en timbre. Rythme parfois haché (fragments courts). Qualité "démo technique", pas "doublage broadcast". Acceptable pour le jalon V1 "Proof of Value".
+- **Leçons** :
+  - Toujours vérifier le contenu audio (pas seulement la durée) dans le QC.
+  - Le speed TTS a un impact direct sur le timbre perçu — le contraindre étroitement.
+  - Le voice profile à 1 clip de 10s est insuffisant. V2 doit implémenter P6 (embedding moyen sur top-10 segments).
+  - Le prompt de rewrite doit cibler l'oralité, pas la compression textuelle.
+- **Décision** : V1 tagué. Prochaines priorités V2 : benchmark TTS avec duration control (IndexTTS-2), voice profile multi-segment (P6), rewrite LLM local (Ministral 3 8B), multi-locuteurs, multi-langues.
 
 ---
 
