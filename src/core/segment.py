@@ -82,6 +82,33 @@ def build_segments_from_words(
         current_duration = word_end - current_start_ms
         text_so_far = word.get("text", "")
 
+        # PHRASE-AWARE: if approaching hard cap (>8s), look back for sentence boundary
+        if current_duration >= NOMINAL_MAX_DURATION_MS and len(current_words) > 1:
+            # Search backwards for a word ending with strong punctuation
+            best_cut = -1
+            min_duration_for_cut = current_start_ms + NOMINAL_MIN_DURATION_MS
+            for j in range(len(current_words) - 1, 0, -1):
+                w = current_words[j]
+                w_text = w.get("text", "").rstrip()
+                w_end = w.get("end_ms", 0)
+                if w_end < min_duration_for_cut:
+                    break  # Don't go below 4s
+                if any(w_text.endswith(p) for p in (".?!;:")):
+                    best_cut = j
+                    break
+            if best_cut > 0:
+                # Cut at the sentence boundary
+                kept = current_words[:best_cut + 1]
+                leftover = current_words[best_cut + 1:]
+                current_words = kept
+                _flush_segment()
+                current_words = leftover
+                if leftover:
+                    current_start_ms = leftover[0].get("start_ms", 0)
+                elif i + 1 < len(words):
+                    current_start_ms = words[i + 1].get("start_ms", 0)
+                continue
+
         # S4 : hard cap — forcer la coupe
         if current_duration >= HARD_CAP_DURATION_MS:
             _flush_segment()

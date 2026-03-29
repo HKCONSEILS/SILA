@@ -123,6 +123,47 @@ def run_extract(manifest: dict, manifest_path: Path) -> dict:
     return manifest
 
 
+
+
+# =========================================================================
+# Phase 2 : Demucs (vocal separation)
+# =========================================================================
+
+
+def run_demucs(manifest: dict, manifest_path: Path) -> dict:
+    """Phase 2 : Separation vocale via Demucs htdemucs_ft."""
+    from src.engines.separation.demucs_engine import DemucsEngine
+
+    project_dir = manifest_path.parent
+    extracted_dir = project_dir / "extracted"
+    audio_input = extracted_dir / "audio_48k.wav"
+    vocals_path = extracted_dir / "vocals.wav"
+
+    if vocals_path.exists():
+        logger.info("Vocals already separated, skipping.")
+        update_stage(manifest, "demucs", StageStatus.COMPLETED)
+        save_manifest(manifest, manifest_path)
+        return manifest
+
+    update_stage(manifest, "demucs", StageStatus.RUNNING)
+    save_manifest(manifest, manifest_path)
+
+    try:
+        engine = DemucsEngine()
+        result = engine.separate(audio_input, extracted_dir)
+        engine.unload()
+        update_stage(manifest, "demucs", StageStatus.COMPLETED)
+    except Exception as exc:
+        logger.warning("Demucs failed: %s — falling back to original audio", exc)
+        update_stage(manifest, "demucs", StageStatus.FAILED, error=str(exc))
+        # Fallback: copy original as vocals
+        import shutil
+        shutil.copy2(str(audio_input), str(vocals_path))
+
+    save_manifest(manifest, manifest_path)
+    logger.info("Phase 2 (Demucs) done: %s", vocals_path)
+    return manifest
+
 # =========================================================================
 # Phase 3 : ASR (WhisperX)
 # =========================================================================
@@ -133,7 +174,9 @@ def run_asr(manifest: dict, manifest_path: Path) -> dict:
     from src.engines.asr.whisperx_engine import WhisperXEngine
 
     project_dir = manifest_path.parent
-    audio_path = project_dir / "extracted" / "audio_48k.wav"
+    # Use vocals.wav (Demucs output) if available, else original audio
+    vocals_path = project_dir / "extracted" / "vocals.wav"
+    audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
     transcript_path = project_dir / "asr" / "transcript.json"
 
     if transcript_path.exists():
@@ -424,7 +467,9 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             engine = EngineClass(model_dir=model_path)
 
         # Extract voice reference from source audio (first 10s with speech)
-        audio_path = project_dir / "extracted" / "audio_48k.wav"
+        # Use vocals.wav (Demucs output) for cleaner voice reference
+        vocals_path = project_dir / "extracted" / "vocals.wav"
+        audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
         # Use start of first segment as voice reference
         segments = manifest["segments"]
         if segments:
@@ -800,6 +845,14 @@ def run_pipeline(
     logger.info("PHASE 1 — EXTRACT")
     logger.info("=" * 60)
     manifest = run_extract(manifest, manifest_path)
+
+    # Phase 2 : Demucs
+    logger.info("=" * 60)
+    logger.info("PHASE 2 — DEMUCS (vocal separation)")
+    logger.info("=" * 60)
+    t_demucs = time.time()
+    manifest = run_demucs(manifest, manifest_path)
+    logger.info("Demucs took %.1fs", time.time() - t_demucs)
 
     # Phase 3 : ASR
     logger.info("=" * 60)
