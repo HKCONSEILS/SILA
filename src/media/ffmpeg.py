@@ -141,31 +141,51 @@ def loudnorm(
     output_path: Path,
     target_lufs: float = -16.0,
 ) -> Path:
-    """Normalise le loudness d'un fichier audio.
+    """Normalise le loudness en 2 passes FFmpeg (EBU R128).
 
-    Voir MASTERPLAN.md §6.1 Phase 9.5 — FFmpeg loudnorm, cible -16 LUFS (EBU R128).
-    Principe P10 : loudness -16 LUFS.
-
-    Args:
-        input_path: Audio d'entree.
-        output_path: Audio normalise en sortie.
-        target_lufs: Cible de loudness en LUFS.
-
-    Returns:
-        Chemin vers le fichier normalise.
+    Passe 1 : mesurer le loudness actuel.
+    Passe 2 : appliquer la correction avec linear=true.
+    Voir MASTERPLAN.md §6.1 Phase 9.5 — P10 : -16 LUFS.
     """
+    import re as _re
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    _run_ffmpeg(
-        [
-            "-i", str(input_path),
-            "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11",
-            "-ar", "48000",
-            "-ac", "1",
-            str(output_path),
-        ],
-        description="loudnorm",
-    )
-    logger.info("Loudnorm applied: %s -> %s (target %.1f LUFS)", input_path, output_path, target_lufs)
+
+    # Pass 1: measure
+    measure_cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "info",
+        "-i", str(input_path),
+        "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11:print_format=json",
+        "-f", "null", "-",
+    ]
+    result = subprocess.run(measure_cmd, capture_output=True, text=True, check=False)
+    match = _re.search(r'\{[^{}]*"input_i"[^{}]*\}', result.stderr, _re.DOTALL)
+
+    if match:
+        stats = json.loads(match.group())
+        # Pass 2: correct with measured values
+        af = (
+            f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11:"
+            f"measured_I={stats.get('input_i', -24)}:"
+            f"measured_LRA={stats.get('input_lra', 7)}:"
+            f"measured_TP={stats.get('input_tp', -2)}:"
+            f"measured_thresh={stats.get('input_thresh', -34)}:"
+            f"offset={stats.get('target_offset', 0)}:"
+            f"linear=true"
+        )
+        _run_ffmpeg(
+            ["-i", str(input_path), "-af", af, "-ar", "48000", "-ac", "1", str(output_path)],
+            description="loudnorm-2pass",
+        )
+        logger.info("Loudnorm 2-pass: %s (measured_I=%s)", output_path, stats.get("input_i"))
+    else:
+        # Fallback: single pass
+        logger.warning("Loudnorm: could not parse stats, falling back to 1-pass")
+        _run_ffmpeg(
+            ["-i", str(input_path), "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11",
+             "-ar", "48000", "-ac", "1", str(output_path)],
+            description="loudnorm-1pass",
+        )
     return output_path
 
 

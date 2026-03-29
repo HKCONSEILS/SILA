@@ -74,7 +74,14 @@ def assemble_segments(
 
         timeline[start_sample:end_sample] += chunk
 
+    # Detect gaps > 500ms between placed segments
+    placed = sorted(
+        [(seg["start_ms"], seg["start_ms"] + int(len(sf.read(str(Path(seg["audio_path"])), dtype="float32")[0]) / sf.info(str(Path(seg["audio_path"]))).samplerate * 1000))
+         for seg in segments if Path(seg["audio_path"]).exists()],
+        key=lambda x: x[0],
+    ) if False else []  # Skip expensive gap detection for now (TODO V2)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     sf.write(str(output_path), timeline, sample_rate)
-    logger.info("Assembly done: %s (%d ms)", output_path, total_duration_ms)
+    logger.info("Assembly done: %s (%d ms, %d segments)", output_path, total_duration_ms, len(segments))
     return output_path
