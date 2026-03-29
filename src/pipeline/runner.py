@@ -503,7 +503,6 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             text = trans["translated_text"]
             budget_ms = trans["timing_budget_ms"]
             output_path = tts_dir / f"{seg_id}.wav"
-            p1_path = tts_dir / f"{seg_id}_p1.wav"
 
             # Truncate excessively long text to prevent absurd TTS durations
             max_chars = max(200, int(budget_ms * 0.02))  # ~20 chars/sec
@@ -511,82 +510,43 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 logger.warning("TTS text too long for %s (%d chars, max %d) — truncating", seg_id, len(text), max_chars)
                 text = text[:max_chars].rsplit(" ", 1)[0]
 
-            # --- PASS 1: generate at speed=1.0, measure real duration ---
+            # --- Adaptive speed TTS ---
             if output_path.exists():
                 import soundfile as sf
                 info = sf.info(str(output_path))
                 tts_result_ms = int(info.duration * 1000)
+                tts_speed_used = 1.0
                 logger.info("TTS [%d/%d] %s: cached (%dms)", i + 1, len(translations), seg_id, tts_result_ms)
             else:
-                logger.info("TTS P1 [%d/%d] %s (speed=1.0): %s", i + 1, len(translations), seg_id, text[:60])
+                from src.core.timing import NATURAL_SPEECH_RATES as _RATES
+                _debit = _RATES.get(target_lang, 10)
+                est_duration_s = len(text) / _debit
+                budget_s = budget_ms / 1000
+                raw_speed = est_duration_s / budget_s if budget_s > 0 else 1.0
+                adaptive_speed = max(0.8, min(MAX_SPEED_RATIO, raw_speed))
+
+                logger.info("TTS [%d/%d] %s (speed=%.2f, est=%.1fs, budget=%.1fs): %s",
+                            i + 1, len(translations), seg_id, adaptive_speed, est_duration_s, budget_s, text[:60])
                 tts_result = engine.synthesize(
                     text=text,
-                    output_path=p1_path,
+                    output_path=output_path,
                     target_lang=target_lang,
-                    speed=1.0,
+                    speed=adaptive_speed,
                 )
-                p1_ms = tts_result.duration_ms
+                tts_result_ms = tts_result.duration_ms
+                tts_speed_used = adaptive_speed
 
-                # P1 collapse retry — regenerate at speed=1.0 if abnormally short
-                if p1_ms < budget_ms * 0.10 and budget_ms > 2000:
-                    logger.warning("TTS P1 collapsed for %s (%dms at speed=1.0) — retrying", seg_id, p1_ms)
+                # Collapse retry
+                if tts_result_ms < budget_ms * 0.10 and budget_ms > 2000:
+                    logger.warning("TTS collapsed for %s (%dms) — retrying at speed=1.0", seg_id, tts_result_ms)
                     tts_result = engine.synthesize(
                         text=text,
-                        output_path=p1_path,
+                        output_path=output_path,
                         target_lang=target_lang,
                         speed=1.0,
                     )
-                    p1_ms = tts_result.duration_ms
-                    logger.info("TTS P1 retry: %dms", p1_ms)
-
-                # --- Decide: keep P1 or do PASS 2 ---
-                speed_exact = p1_ms / budget_ms if budget_ms > 0 else 1.0
-                collapse_threshold = budget_ms * 0.10
-
-                if speed_exact <= 1.05:
-                    # P1 fits in budget — keep it
-                    import shutil
-                    shutil.move(str(p1_path), str(output_path))
-                    tts_result_ms = p1_ms
-                    logger.info("TTS P1 %s: %dms fits budget %dms (ratio %.2f) — keeping", seg_id, p1_ms, budget_ms, speed_exact)
-
-                else:
-                    # P2: regenerate with exact speed (no margin — CosyVoice is super-linear)
-                    speed_p2 = min(MAX_SPEED_RATIO, speed_exact)
-                    logger.info("TTS P2 [%d/%d] %s (speed=%.2f, P1 was %dms / %dms budget)", i + 1, len(translations), seg_id, speed_p2, p1_ms, budget_ms)
-
-                    p2_path = tts_dir / f"{seg_id}_p2.wav"
-                    tts_result = engine.synthesize(
-                        text=text,
-                        output_path=p2_path,
-                        target_lang=target_lang,
-                        speed=speed_p2,
-                    )
-                    p2_ms = tts_result.duration_ms
-
-                    # Collapse detection (relative threshold)
-                    if p2_ms < collapse_threshold:
-                        logger.warning("TTS P2 collapsed for %s (%dms < %dms threshold) — keeping P1 (%dms)", seg_id, p2_ms, int(collapse_threshold), p1_ms)
-                        import shutil
-                        shutil.move(str(p1_path), str(output_path))
-                        p2_path.unlink(missing_ok=True)
-                        tts_result_ms = p1_ms
-                    else:
-                        # Pick whichever is closer to budget
-                        p1_delta = abs(p1_ms - budget_ms)
-                        p2_delta = abs(p2_ms - budget_ms)
-                        if p2_delta <= p1_delta:
-                            import shutil
-                            shutil.move(str(p2_path), str(output_path))
-                            p1_path.unlink(missing_ok=True)
-                            tts_result_ms = p2_ms
-                            logger.info("TTS %s: P2 closer (%dms, delta %dms) vs P1 (%dms, delta %dms)", seg_id, p2_ms, p2_delta, p1_ms, p1_delta)
-                        else:
-                            import shutil
-                            shutil.move(str(p1_path), str(output_path))
-                            p2_path.unlink(missing_ok=True)
-                            tts_result_ms = p1_ms
-                            logger.info("TTS %s: P1 closer (%dms, delta %dms) vs P2 (%dms, delta %dms)", seg_id, p1_ms, p1_delta, p2_ms, p2_delta)
+                    tts_result_ms = tts_result.duration_ms
+                    tts_speed_used = 1.0
 
             # --- Time-stretch if needed ---
             stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
@@ -645,6 +605,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "tts_input_chars": tts_input_chars,
                 "tts_input_text": text[:200],
                 "tts_overhead_ms": tts_overhead_ms,
+                "tts_speed_used": round(tts_speed_used, 3) if isinstance(tts_speed_used, float) else 1.0,
                 "rewrite_reason": trans.get("rewrite_reason"),
             })
 
