@@ -1,7 +1,7 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.3.0
+**Version du document** : 1.4.0
 **Date** : 2026-03-29
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
@@ -97,7 +97,7 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | P6 | **Profil voix global** | Embedding moyen calculé sur les 10 meilleurs segments par locuteur, pas un seul extrait. |
 | P7 | **Mapping speaker** | `speaker_id → voice_profile → target_voice_id → target_lang`. |
 | P8 | **Crossfade 50 ms** | Entre segments TTS finaux. Pas 200-300 ms. |
-| P9 | **Segments 3s-10s** | Durée cible pour le TTS. Hard cap à 12s. |
+| P9 | **Segments 3s-10s** | Durée cible pour le TTS. Hard cap à 12s. **Plancher effectif 6s** avec CosyVoice (overhead TTS minimum ~3-4s, rendant les segments < 6s systématiquement hors budget). La segmentation phrase-aware (coupure aux frontières de phrase) est implémentée mais **désactivée par défaut en V1** — elle crée des segments plus courts qui dégradent le QC (voir ADR-008). Réactivation prévue quand le contrôle de durée TTS sera plus fiable. |
 | P10 | **Loudness -16 LUFS** | Cible web/streaming, norme EBU R128. |
 | P11 | **Idempotence** | Chaque étape vérifiable. Même entrée + même config → skip si sortie valide. Le TTS nécessite en plus un seed fixe. |
 | P12 | **Interchangeabilité** | Séparer interface de tâche (ASR, MT, TTS, rewrite) et moteur concret. Chaque moteur est swappable sans casser le pipeline. |
@@ -242,14 +242,16 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 CLI (Python)
   └── Pipeline séquentiel
         ├── extract_audio()
-        ├── transcribe()        → WhisperX
-        ├── segment()           → Règles métier Python
-        ├── translate()         → NLLB-200 via CTranslate2
-        ├── generate_tts()      → CosyVoice 3.0
-        ├── adjust_timing()     → pyrubberband
-        ├── assemble_audio()    → FFmpeg
-        ├── normalize()         → FFmpeg loudnorm
-        └── export()            → FFmpeg remux
+        ├── separate_vocals()    → Demucs v4 [optionnel, flag --demucs]
+        ├── transcribe()         → WhisperX
+        ├── segment()            → Règles métier Python
+        ├── translate()          → NLLB-200 via CTranslate2
+        ├── rewrite()            → Qwen3.5-27B via LXC 225 [cascade qualité-first]
+        ├── generate_tts()       → CosyVoice 3.0
+        ├── adjust_timing()      → pyrubberband
+        ├── assemble_audio()     → FFmpeg
+        ├── normalize()          → FFmpeg loudnorm
+        └── export()             → FFmpeg remux
   └── Manifeste JSON (lecture/écriture à chaque étape)
   └── Filesystem local (artefacts)
 ```
@@ -343,8 +345,10 @@ Phase 1: EXTRACTION (séquentiel, une seule fois)
   ├── 1.1  FFmpeg → audio source WAV 48kHz mono
   └── 1.2  FFmpeg → métadonnées vidéo (fps, résolution, durée, codecs, chapitres)
 
-Phase 2: SÉPARATION VOCALE (séquentiel, une seule fois) [V2+]
+Phase 2: SÉPARATION VOCALE (séquentiel, une seule fois) [optionnel V1, flag --demucs]
   └── 2.1  Demucs v4 → stems : voice.wav, music.wav, sfx.wav
+  Note V1 : désactivé par défaut. Utile uniquement sur vidéos avec fond sonore.
+  Contre-productif sur vidéos propres (voix sèche → clonage altéré). Voir ADR-008.
 
 Phase 3: ANALYSE SPEECH (séquentiel, une seule fois)
   ├── 3.1  WhisperX ASR sur voice.wav (ou audio.wav en V1) → transcript brut
@@ -411,9 +415,9 @@ Phase 12: LIP-SYNC [V3, optionnel, hors chemin critique]
 |---|---|---|
 | S1 | Pas de mélange de locuteurs | Un segment = un seul `speaker_id` |
 | S2 | Couper sur pause + ponctuation | Privilégier les coupures sur pause > 400ms coïncidant avec une ponctuation forte (. ? !) |
-| S3 | Durée nominale 4-8s | Cœur de distribution visé |
+| S3 | Durée nominale 6-9s | Cœur de distribution visé. Plancher effectif 6s imposé par l'overhead CosyVoice (~3-4s minimum). La plage 4-8s du masterplan initial est révisée à 6-9s suite aux tests post-Demucs (ADR-008). |
 | S4 | Hard cap 10s | Au-delà, forcer une coupe sur ponctuation faible (,) ou pause > 200ms |
-| S5 | Minimum 3s | En dessous, fusionner avec le segment adjacent du même locuteur |
+| S5 | Minimum 3s | En dessous, fusionner avec le segment adjacent du même locuteur. En pratique, le plancher effectif MIN_BUDGET_EFFECTIVE_MS = 6000 empêche la création de segments < 6s via la phrase-aware. |
 | S6 | Seuil de pause adaptatif | Si le contenu est dense (débit rapide), réduire le seuil à 300ms |
 | S7 | Overlaps = cas spécial | Segments avec overlap de locuteurs → flag `overlap: true`, traitement dédié |
 | S8 | Contexte conservé | Chaque segment porte `context_left` (2-3 segments avant) et `context_right` (1-2 segments après) |
@@ -501,6 +505,11 @@ stretch_ratio       : float     — 1.0 si pas de stretch
 final_audio_uri     : str       — chemin après stretch si applicable
 seed                : int       — seed utilisé pour reproductibilité
 utmos_score         : float|null — score qualité (V2+)
+tts_input_chars     : int       — nombre de caractères envoyés au TTS
+tts_input_text      : str       — texte exact envoyé au TTS (audit/debug)
+tts_overhead_ms     : int       — duration_ms - (tts_input_chars / debit_chars_s × 1000). Sert à calibrer MIN_BUDGET_EFFECTIVE_MS.
+rewrite_skipped     : bool      — true si le rewrite a été skippé (budget < REWRITE_MIN_BUDGET_MS)
+rewrite_reason      : str|null  — null | "budget_too_short" | "text_fits" | "rewritten" | "review_required"
 ```
 
 ---
@@ -547,6 +556,11 @@ utmos_score         : float|null — score qualité (V2+)
     "mt_engine": "nllb-200-3.3b-ct2",
     "max_segment_duration_ms": 10000,
     "preferred_segment_duration_ms": 6000,
+    "min_budget_effective_ms": 6000,
+    "phrase_search_threshold_ms": 9000,
+    "phrase_aware_enabled": false,
+    "rewrite_min_budget_ms": 7000,
+    "demucs_enabled": false,
     "pause_split_threshold_ms": 400,
     "crossfade_ms": 50,
     "max_stretch_ratio": 1.10,
@@ -570,7 +584,7 @@ utmos_score         : float|null — score qualité (V2+)
 
   "stages": {
     "extract":      { "status": "completed", "started_at": "...", "finished_at": "..." },
-    "demucs":       { "status": "skipped",   "reason": "V1 — pas de séparation vocale" },
+    "demucs":       { "status": "skipped",   "reason": "Désactivé par défaut en V1 (flag --demucs pour activer)" },
     "asr":          { "status": "completed", "started_at": "...", "finished_at": "..." },
     "segmentation": { "status": "completed", "segments_count": 87 },
     "context":      { "status": "completed" },
@@ -1150,9 +1164,9 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | Nommage déterministe | S3 / MinIO |
 | Reprise par étape | Reprise par segment individuel |
 | FFmpeg loudnorm global | pyloudnorm segment par segment |
-| Pas de Demucs | — |
+| Demucs optionnel (flag `--demucs`, désactivé par défaut) | — |
+| Réécriture LLM (Qwen3.5-27B via LXC 225, cascade qualité-first) | — |
 | Pas de diarisation | — |
-| Pas de réécriture LLM | — |
 | Pas de lip-sync | — |
 | Pas de parallélisme | — |
 
@@ -1164,10 +1178,10 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 |---|---|
 | Multi-locuteurs | Diarisation pyannote, mapping speaker → voice |
 | Multi-langues | Fan-out parallèle après segmentation |
-| Demucs v4 | Séparation vocale, mix avec stems |
+| Demucs v4 | Activé par défaut. Détection automatique fond sonore (SNR). Mix avec stems |
 | Décomposition WhisperX | Whisper + alignement + diarisation séparés |
 | Évaluation ASR V2 | Benchmark WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2 sur golden set |
-| Réécriture contrainte | Mistral Small 3.2 24B (Unsloth Q4_K_M) |
+| Réécriture contrainte | Mistral Small 3.2 24B (remplacement Qwen3.5-27B remote). Cohabitation GPU locale. |
 | Celery + Redis | Dispatch et parallélisme des tâches |
 | API REST FastAPI | Upload, suivi, téléchargement |
 | PostgreSQL JSONB | Index de consultation, suivi progression |
@@ -1250,7 +1264,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | R5 | **WhisperX non maintenu** (repo stale) | Moyenne | Moyen | BetterWhisperX comme fallback, décomposition V2 |
 | R6 | **Demucs archivé** par Meta | Avéré | Faible (poids figés fonctionnent) | Surveiller forks, Bandit v2 comme successeur |
 | R7 | **Timing cassé** malgré la cascade | Moyenne | Fort (rendu inutilisable) | Quality gate post-TTS, review si > seuil |
-| R8 | **Mix final amateur** sans stems | Haute en V1 | Moyen (V1 cible voix-only) | V1 cible podcasts/cours. Demucs dès V2. |
+| R8 | **Mix final amateur** sans stems | Moyenne en V1 | Moyen (V1 cible voix-only) | Demucs optionnel en V1 (flag). V2 : activé par défaut avec détection SNR. |
 | R9 | **Over-engineering V1** tue le projet | Moyenne | Fatal | Respecter le scope V1. CLI + manifeste + 1 langue = SUFFISANT. |
 | R10 | **Cohérence voix** sur 1h de contenu | Haute | Moyen | Embedding moyen (top-10), seed fixe, monitoring UTMOS |
 | R11 | **Évolution rapide** des modèles TTS | Certaine | Positif si géré | Principe P12 (interchangeabilité). Interfaces abstraites. |
@@ -1310,11 +1324,12 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Décision** : Mistral Small 3.2 24B (Unsloth Dynamic 2.0 Q4_K_M) ~15 Go VRAM. Fallback Ministral 3 8B ~5 Go.
 - **Justification** : Apache 2.0, 40+ langues, tient sur 1× RTX 4090. Mistral Small 4 (119B) trop lourd pour <24 Go VRAM.
 
-### ADR-005 : Pas de Demucs en V1
-- **Date** : 2026-03-22
-- **Contexte** : Demucs améliore la qualité mais double la complexité.
-- **Décision** : V1 cible des contenus voix-only (podcasts, cours). Demucs ajouté en V2.
-- **Conséquence** : Mix V1 plus simple. Acceptable pour le cas d'usage V1.
+### ADR-005 : Demucs optionnel en V1 (révisé mars 2026)
+- **Date** : 2026-03-22, **révisé** 2026-03-29
+- **Contexte initial** : Demucs améliore la qualité mais double la complexité. V1 cible des contenus voix-only.
+- **Révision** : Demucs implémenté et testé en V1. Résultats : utile sur vidéos avec fond sonore (0 collapse TTS, voix propre), mais contre-productif sur vidéos propres (référence vocale « sèche » → clonage altéré, QC -20 points sur test_002).
+- **Décision révisée** : Demucs **optionnel en V1** (flag `--demucs`, désactivé par défaut). L'opérateur l'active explicitement quand la vidéo a de la musique ou du fond sonore. Détection automatique (SNR) en V2.
+- **Conséquence** : Le pipeline fonctionne sans Demucs (audio source direct) et avec (vocals.wav). Le fallback est transparent.
 
 ### ADR-006 : Voxtral TTS ajouté comme challenger TTS (mars 2026)
 - **Date** : 2026-03-28
@@ -1330,6 +1345,33 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Principes ajoutés** : P15 (Intelligibilité d'abord), P16 (Budget en caractères : `max_chars = (budget_ms/1000) × debit × 0.90`).
 - **Impact KPI** : Le timing (±15%) est mesuré après contrainte speed ≤1.2× et stretch ≤1.10×. Segments à speed >1.2× = 0% (cible). Segments stretchés >1.10× = 0% (cible).
 - **Conséquence** : La réécriture passe de correctif optionnel (5/52 segments réécrits = 9.6%) à composant obligatoire pour tout segment hors budget. Le seuil inclut désormais les REVIEW_REQUIRED en plus des REWRITE_NEEDED.
+
+### ADR-008 : Résultats post-Demucs — Segmentation et constantes (mars 2026)
+- **Date** : 2026-03-29
+- **Contexte** : 7 commits (494eb47..17d10eb) ont implémenté Demucs, la segmentation phrase-aware, le rewrite adaptatif, et le logging TTS enrichi. Tests sur test_002 (conférence 52s, pas de musique) et test_003 (Zeste de Science 356s, avec musique).
+- **Résultats QC (segments dans budget ±15%)** :
+
+| Config | test_002 | test_003 |
+|---|---|---|
+| Heuristique v1 | 20% (1/5) | 12% (4/34) |
+| TTS 2-pass | 60% (3/5) | 44% (15/34) |
+| Quality-first | 60% (3/5) | 59% (20/34) |
+| Demucs-only | 40% (2/5) | 56% (19/34) |
+| Demucs + phrase-aware v1 (seuil 8s) | 17% (1/6) | 49% (21/43) |
+| Demucs + phrase-aware v2 (seuil 9s, gardes) | 0% (0/6) | 44% (17/39) |
+
+- **Constats clés** :
+  - **Demucs** : gain qualitatif net sur vidéos avec musique (0 collapse TTS), mais dégradation sur vidéos propres (-20 points QC). → Rendu optionnel.
+  - **Phrase-aware** : crée plus de segments plus courts, dégradant systématiquement le QC. L'overhead CosyVoice (~3-4s minimum) rend les segments < 6s impossibles à fitter. → Désactivé par défaut.
+  - **Meilleure config V1** : Quality-first sans Demucs sans phrase-aware = 60% / 59%.
+  - **Bottleneck identifié** : le contrôle de durée CosyVoice, pas la segmentation ni le rewrite.
+- **Décisions** :
+  - P9 révisé : plancher effectif 6s, distribution cible 6-9s (était 4-8s)
+  - `PHRASE_SEARCH_THRESHOLD_MS` = 9000 (était 8000), `MIN_BUDGET_EFFECTIVE_MS` = 6000 (nouveau)
+  - `REWRITE_MIN_BUDGET_MS` = 7000 : skip rewrite si budget < 7s
+  - TTS logging enrichi : `tts_overhead_ms`, `rewrite_reason` dans le manifeste
+  - Prochaine priorité : assembly + export (phases 9-11) pour pipeline bout-en-bout
+- **Conséquence** : le QC à 60% est suffisant pour un premier export écoutable. L'amélioration du QC passe désormais par le contrôle de durée TTS (investigation CosyVoice / benchmark Qwen3-TTS), pas par la segmentation.
 
 ---
 
