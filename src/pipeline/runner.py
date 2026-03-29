@@ -837,6 +837,7 @@ def run_pipeline(
     project_id: str | None = None,
     from_stage: str | None = None,
     tts_engine: str = "cosyvoice",
+    demucs_enabled: bool = False,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
 
@@ -867,13 +868,16 @@ def run_pipeline(
     logger.info("=" * 60)
     manifest = run_extract(manifest, manifest_path)
 
-    # Phase 2 : Demucs
-    logger.info("=" * 60)
-    logger.info("PHASE 2 — DEMUCS (vocal separation)")
-    logger.info("=" * 60)
-    t_demucs = time.time()
-    manifest = run_demucs(manifest, manifest_path)
-    logger.info("Demucs took %.1fs", time.time() - t_demucs)
+    # Phase 2 : Demucs (optional, off by default — ADR-008)
+    if demucs_enabled:
+        logger.info("=" * 60)
+        logger.info("PHASE 2 — DEMUCS (vocal separation)")
+        logger.info("=" * 60)
+        t_demucs = time.time()
+        manifest = run_demucs(manifest, manifest_path)
+        logger.info("Demucs took %.1fs", time.time() - t_demucs)
+    else:
+        logger.info("Demucs disabled (default). Use --demucs for videos with background music.")
 
     # Phase 3 : ASR
     logger.info("=" * 60)

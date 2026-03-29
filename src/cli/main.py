@@ -68,6 +68,7 @@ def _setup_logging(verbose: bool) -> None:
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
 @click.option("--no-phrase-aware", is_flag=True, default=False, help="Disable phrase-aware segmentation.")
+@click.option("--demucs", is_flag=True, default=False, help="Enable Demucs vocal separation (for videos with background music).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -85,6 +86,7 @@ def cli(
     verbose: bool,
     tts_engine: str,
     no_phrase_aware: bool,
+    demucs: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -100,6 +102,8 @@ def cli(
             os.environ["SILA_NO_PHRASE_AWARE"] = "1"
             console.print("  Phrase-aware: DISABLED")
         console.print(f"  TTS engine: {tts_engine}")
+        if demucs:
+            console.print("  Demucs: ENABLED")
         manifest = run_pipeline(
             video_path=input_video,
             source_lang=source_lang,
@@ -108,6 +112,7 @@ def cli(
             project_id=project_id,
             from_stage=from_stage,
             tts_engine=tts_engine,
+            demucs_enabled=demucs,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
