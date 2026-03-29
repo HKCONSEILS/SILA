@@ -67,7 +67,7 @@ def _setup_logging(verbose: bool) -> None:
     help="Mode de relance (ex: 'failed --lang en', 'segment seg_0042 --lang en').",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
-@click.option("--no-phrase-aware", is_flag=True, default=False, help="Disable phrase-aware segmentation.")
+@click.option("--phrase-aware", is_flag=True, default=False, help="Enable phrase-aware segmentation (off by default).")
 @click.option("--demucs", is_flag=True, default=False, help="Enable Demucs vocal separation (for videos with background music).")
 @click.option(
     "--tts-engine",
@@ -85,7 +85,7 @@ def cli(
     retry: str | None,
     verbose: bool,
     tts_engine: str,
-    no_phrase_aware: bool,
+    phrase_aware: bool,
     demucs: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
@@ -97,10 +97,10 @@ def cli(
     console.print(f"  {source_lang} -> {target_lang}")
 
     try:
-        if no_phrase_aware:
+        if phrase_aware:
             import os
-            os.environ["SILA_NO_PHRASE_AWARE"] = "1"
-            console.print("  Phrase-aware: DISABLED")
+            os.environ["SILA_PHRASE_AWARE"] = "1"
+            console.print("  Phrase-aware: ENABLED")')
         console.print(f"  TTS engine: {tts_engine}")
         if demucs:
             console.print("  Demucs: ENABLED")

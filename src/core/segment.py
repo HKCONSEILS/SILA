@@ -86,7 +86,7 @@ def build_segments_from_words(
 
         # PHRASE-AWARE: if approaching hard cap, look back for sentence boundary
         import os
-        phrase_aware_enabled = os.environ.get("SILA_NO_PHRASE_AWARE", "0") != "1"
+        phrase_aware_enabled = os.environ.get("SILA_PHRASE_AWARE", "0") == "1"
         if phrase_aware_enabled and current_duration >= PHRASE_SEARCH_THRESHOLD_MS and len(current_words) > 1:
             # Search backwards for a word ending with strong punctuation
             best_cut = -1
