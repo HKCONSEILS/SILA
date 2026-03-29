@@ -758,7 +758,13 @@ def run_qc(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
                 "flags": result.flags,
             })
 
-        report = engine.generate_report(segments_qc, qc_report_path)
+        # Mix-level checks (loudness, true peak, duration)
+        mix_path = project_dir / "mix" / f"mix_{target_lang}.wav"
+        mix_checks = None
+        if mix_path.exists():
+            mix_checks = engine.check_mix(mix_path, manifest["project"]["duration_ms"])
+
+        report = engine.generate_report(segments_qc, qc_report_path, mix_checks=mix_checks)
         update_stage(manifest, stage_key, StageStatus.COMPLETED)
     except Exception as exc:
         update_stage(manifest, stage_key, StageStatus.FAILED, error=str(exc))
