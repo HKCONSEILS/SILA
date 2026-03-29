@@ -1,8 +1,8 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.2.0
-**Date** : 2026-03-28
+**Version du document** : 1.3.0
+**Date** : 2026-03-29
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
@@ -90,7 +90,7 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | # | Principe | Description |
 |---|---|---|
 | P1 | **Timing contract** | Chaque segment porte un `timing_budget_ms` dès la segmentation. Chaque étape en aval respecte ce budget. Contrôle de durée en amont, pas en aval. |
-| P2 | **Cascade de durée** | Segmenter → budget → traduire avec contrainte → réécrire si nécessaire → ajuster prosodie TTS → time-stretch ≤1.25× en dernier recours. |
+| P2 | **Cascade de durée (qualité d'abord)** | Le TTS a un débit naturel confortable (~10 chars/s EN) qui est non-négociable. La cascade adapte le contenu au budget, pas la vitesse de parole. Ordre : segmenter → budget → calculer max_chars (`budget_ms / 1000 × debit_naturel`) → traduire → réécrire LLM si texte > max_chars → TTS à speed ≤1.2× → time-stretch ≤1.10× en dernier recours. Jamais sacrifier l'intelligibilité pour le timing. |
 | P3 | **Tronc commun** | Les étapes 1-4 (extraction → Demucs → WhisperX → segmentation) sont exécutées une seule fois, quel que soit le nombre de langues cibles. |
 | P4 | **Manifeste central** | Un JSON par projet, source de vérité pour l'état, la reprise, le cache et l'audit. |
 | P5 | **Timebase 48 kHz** | Référence maître. Downsampling 16 kHz uniquement pour l'inférence Whisper. |
@@ -103,6 +103,8 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | P12 | **Interchangeabilité** | Séparer interface de tâche (ASR, MT, TTS, rewrite) et moteur concret. Chaque moteur est swappable sans casser le pipeline. |
 | P13 | **Artefacts immuables** | Chaque sortie d'étape est un fichier immuable avec hash. Pas de modification in-place. |
 | P14 | **Vidéo source intouchée** | La piste vidéo n'est jamais réencodée avant le remux final. |
+| P15 | **Intelligibilité d'abord** | La qualité d'écoute prime sur le respect du timing. Un segment compréhensible à speed=1.0 qui déborde de 20% vaut mieux qu'un segment calé au timing mais inintelligible à speed=2.5×. Le speed TTS ne dépasse jamais 1.2×. Le time-stretch ne dépasse jamais 1.10×. Au-delà, c'est le texte qui doit être raccourci, pas la voix accélérée. |
+| P16 | **Budget en caractères** | Chaque segment porte un `max_chars` calculé depuis le `timing_budget_ms` et le débit naturel du TTS (~10 chars/s pour l'anglais, ~12 chars/s pour le français). La traduction et la réécriture doivent respecter ce budget. Formule : `max_chars = (timing_budget_ms / 1000) × debit_chars_s × 0.90` (marge 10%). |
 
 ### 2.2 Séparations conceptuelles fondamentales
 
@@ -188,7 +190,7 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 - **VRAM** : ~8 Go estimé (4B paramètres BF16)
 - **Benchmarks Mistral** : bat ElevenLabs Flash v2.5 en naturalité (évaluations humaines), parité avec ElevenLabs v3
 - **⚠️ Licence** : poids open-weights, mais les voix de référence fournies sont CC-BY-NC 4.0. Le modèle "hérite" de cette licence selon HuggingFace. À clarifier : l'utilisation avec des voix propres (clonées depuis nos vidéos) est-elle exempte de la restriction NC ? Vérification juridique requise avant usage commercial.
-- **⚠️ Maturité** : sorti le 26 mars 2026 (2 jours). Zéro retour terrain. Écosystème Mistral déjà présent sur l'infra (avantage intégration).
+- **⚠️ Maturité** : sorti le 26 mars 2026. Zéro retour terrain. vLLM-Omni instable. Écosystème Mistral déjà présent sur l'infra (avantage intégration).
 
 ### 3.4 Détail du LLM de réécriture (V2)
 
@@ -370,14 +372,15 @@ Phase 6: TRADUCTION (parallèle par langue, séquentiel par segment pour le cont
   ├── 6.2  Injecter glossaire + contexte narratif
   └── 6.3  Estimer durée cible → classer : fit_ok | rewrite_needed | review_required
 
-Phase 7: RÉÉCRITURE CONTRAINTE [V2+] (parallèle par segment)
-  └── 7.1  Si rewrite_needed : LLM local → variante courte respectant timing_budget_ms
+Phase 7: RÉÉCRITURE CONTRAINTE (obligatoire si texte > max_chars)
+  ├── 7.1  Calculer max_chars = (budget_ms / 1000) × debit_naturel × 0.90
+  └── 7.2  Si len(texte_traduit) > max_chars : LLM local → variante courte ≤ max_chars
 
 Phase 8: TTS / VOICE CLONING (parallèle par segment × langue)
-  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS / Voxtral TTS)
+  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS / Voxtral TTS), speed max 1.2×
   ├── 8.2  Mesurer durée réelle
-  ├── 8.3  Si écart > seuil : time-stretch ≤1.25× (pyrubberband)
-  └── 8.4  Si stretch > 1.25× → review_required
+  ├── 8.3  Si écart > seuil : time-stretch ≤1.10× (pyrubberband)
+  └── 8.4  Si stretch > 1.10× → réécriture LLM obligatoire, pas d'accélération forcée
 
 Phase 9: ASSEMBLY AUDIO (séquentiel par langue)
   ├── 9.1  Placer chaque segment sur la timeline cible
@@ -546,7 +549,7 @@ utmos_score         : float|null — score qualité (V2+)
     "preferred_segment_duration_ms": 6000,
     "pause_split_threshold_ms": 400,
     "crossfade_ms": 50,
-    "max_stretch_ratio": 1.25,
+    "max_stretch_ratio": 1.10,
     "loudness_target_lufs": -16,
     "tts_seed": 42
   },
@@ -1060,7 +1063,7 @@ Avant chaque exécution, vérifier si un artefact avec cette clé existe déjà 
 | Worker crash | Celery re-dispatch automatique |
 | Langue non supportée par le TTS | Fallback vers moteur alternatif ou hard-fail avec flag |
 | Voice profile manquant | Flag `review_required` + fallback voix générique |
-| Timing impossible (stretch > 1.25×) | Flag `review_required`, garder le segment stretché à 1.25× |
+| Timing impossible (stretch > 1.10×) | Réécriture LLM obligatoire. Si toujours hors budget après réécriture, flag `review_required`, garder l'audio à speed naturel |
 | Segment pathologique (overlap extrême, bruit) | Quarantaine + flag `manual_review` |
 | 3 échecs consécutifs | Dead letter → statut `failed` dans le manifeste |
 
@@ -1098,10 +1101,12 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | Métrique | Cible V1 | Cible V2 | Mesure |
 |---|---|---|---|
 | MOS estimé (UTMOS) | > 3.5/5 | > 3.8/5 | UTMOS par segment |
-| Segments dans le slot ±15% | > 85% | > 90% | Manifeste |
+| Segments dans le slot ±15% | > 85% | > 90% | Manifeste (mesuré APRÈS contrainte speed ≤1.2× et stretch ≤1.10×) |
 | Drift temporel moyen / segment | < 200 ms | < 100 ms | Manifeste |
 | Déviation durée totale vs source | < 2% | < 1% | Calcul post-assembly |
-| Segments stretchés > 1.15× | < 15% | < 8% | Manifeste |
+| Segments TTS générés à speed > 1.2× | 0% | 0% | Manifeste — l'intelligibilité est non-négociable |
+| Segments stretchés > 1.10× | 0% | 0% | Manifeste — au-delà, réécriture obligatoire |
+| Segments réécrits par LLM | Mesurer baseline | < 30% | Manifeste — indicateur d'adéquation traduction/budget |
 | Clipping rate | 0% | 0% | FFmpeg stats |
 | True peak | < -1 dBTP | < -1 dBTP | FFmpeg stats |
 | Loudness final | -16 ± 1 LUFS | -16 ± 0.5 LUFS | FFmpeg loudnorm |
@@ -1212,7 +1217,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | ASR | **Voxtral Realtime 4B** (Mistral) | Streaming ASR, latence configurable 200ms-2.4s. Apache 2.0 open-weights. Même architecture que Transcribe V2 mais optimisé temps réel. Pertinent si SILA évolue vers du near-realtime. |
 | ASR | **Qwen3-ASR** (Alibaba) | Nouveau SOTA ASR open-source début 2026. Candidat remplacement Whisper en V2. |
 | ASR | **Canary Qwen 2.5B** (NVIDIA) | Top HuggingFace Open ASR leaderboard. Pas de diarisation intégrée. |
-| TTS | **Voxtral TTS 4B** (Mistral) | Open-weights, 9 langues, clonage 2-3s, streaming 100ms TTFA, bat ElevenLabs Flash v2.5. Mars 2026 — très récent, zéro retour terrain. vLLM-Omni requis. ⚠️ Licence à clarifier (CC-BY-NC via voix de ref). Challenger prioritaire. |
+| TTS | **Voxtral TTS 4B** (Mistral) | Open-weights, 9 langues, clonage 2-3s, streaming 100ms TTFA, bat ElevenLabs Flash v2.5. Mars 2026 — très récent, vLLM-Omni instable. ⚠️ Licence à clarifier (CC-BY-NC via voix de ref). Challenger prioritaire. |
 | TTS | **GLM-TTS** (Zhipu) | Reinforcement learning, bonne qualité zh/en. |
 | TTS | **Orpheus TTS** | Si le multilingue sort de "research preview". |
 | MT | **MADLAD-400** | Alternative Apache 2.0 à NLLB. |
@@ -1259,7 +1264,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 |---|---|
 | **Timing contract** | Engagement de durée maximale d'un segment, fixé dès la segmentation |
 | **Timing budget** | Durée en ms allouée à un segment pour le TTS + stretch |
-| **Cascade de durée** | Stratégie multi-étapes pour respecter le timing (traduction courte → TTS rapide → stretch léger) |
+| **Cascade de durée** | Stratégie qualité-first pour respecter le timing. Le TTS a un débit naturel non-négociable. On adapte le texte, pas la vitesse de parole. Ordre : calculer max_chars → traduire → réécrire LLM si texte > max_chars → TTS speed ≤1.2× → stretch ≤1.10× en dernier recours. |
 | **Tronc commun** | Étapes exécutées une seule fois quelle que soit le nombre de langues cibles |
 | **Segment logique** | Unité de traduction/TTS définie par des règles métier (3-10s, mono-speaker) |
 | **Chunk technique** | Découpage physique pour le calcul distribué (30-120s avec overlap) |
@@ -1313,10 +1318,18 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 
 ### ADR-006 : Voxtral TTS ajouté comme challenger TTS (mars 2026)
 - **Date** : 2026-03-28
-- **Contexte** : Mistral a sorti Voxtral TTS 4B le 26 mars 2026. Open-weights, 9 langues, clonage 2-3s, streaming ~100ms TTFA, bat ElevenLabs Flash v2.5 selon évaluations humaines Mistral. Écosystème Mistral déjà présent sur l'infra HKCONSEILS (Ministral 14B, Magistral Small, LiteLLM). Serving via vLLM-Omni.
-- **Décision** : Ajouter Voxtral TTS comme 3ème candidat TTS à benchmarker en V2, aux côtés de CosyVoice 3.0 (principal) et Qwen3-TTS (alternatif). Ne pas switcher en V1 — stabiliser d'abord le pipeline avec CosyVoice (TTS 2 passes).
-- **Risque licence** : Les voix de référence fournies par Mistral sont CC-BY-NC 4.0, et le modèle sur HuggingFace "hérite" de cette licence. À clarifier : l'utilisation avec des voix propres (clonées depuis les vidéos source, pas les voix Mistral) lève-t-elle la restriction NC ? Vérification juridique requise avant usage commercial.
-- **Conséquence** : Le benchmark TTS V2 passe de 2 à 3 candidats. L'interface TTS abstraite (principe P12) permet d'intégrer Voxtral sans changer le pipeline.
+- **Contexte** : Mistral a sorti Voxtral TTS 4B le 26/03/2026. Open-weights, 9 langues, clonage 2-3s, streaming ~100ms TTFA, bat ElevenLabs Flash v2.5 selon évaluations humaines Mistral. Écosystème Mistral déjà présent sur l'infra HKCONSEILS. Serving via vLLM-Omni. Test bloqué : vLLM-Omni instable (sorti 26/03).
+- **Décision** : Ajouté comme 3ème candidat TTS à benchmarker en V2. Ne pas switcher en V1 — stabiliser d'abord le pipeline avec CosyVoice.
+- **Risque licence** : Voix de référence CC-BY-NC 4.0. À clarifier : usage avec voix propres lève-t-il la restriction NC ?
+- **Conséquence** : Benchmark TTS V2 passe de 2 à 3 candidats. Engine stub créé, flag --tts-engine ajouté au CLI.
+
+### ADR-007 : Philosophie qualité-first — P15, P16 (mars 2026)
+- **Date** : 2026-03-29
+- **Contexte** : 3 tests bout en bout (test_001, test_002, test_003) montrent que forcer le TTS à speed >2.0× produit des collapses (audio dégénéré) ou des résultats inintelligibles. Le QC à 51.9% est atteint en sacrifiant la qualité audio. Un doubleur humain ne parle jamais à 250% de sa vitesse naturelle — il reformule pour que ça tienne.
+- **Décision** : Le TTS a un débit naturel non-négociable (~10 chars/s EN). On adapte le contenu au budget, pas la vitesse de parole. Speed TTS max 1.2× (pas 2.5×). Stretch max 1.10× (pas 1.25×). La réécriture LLM devient le composant central de la cascade de durée (P2 révisé). Tout segment dont la traduction dépasse max_chars doit être réécrit.
+- **Principes ajoutés** : P15 (Intelligibilité d'abord), P16 (Budget en caractères : `max_chars = (budget_ms/1000) × debit × 0.90`).
+- **Impact KPI** : Le timing (±15%) est mesuré après contrainte speed ≤1.2× et stretch ≤1.10×. Segments à speed >1.2× = 0% (cible). Segments stretchés >1.10× = 0% (cible).
+- **Conséquence** : La réécriture passe de correctif optionnel (5/52 segments réécrits = 9.6%) à composant obligatoire pour tout segment hors budget. Le seuil inclut désormais les REVIEW_REQUIRED en plus des REWRITE_NEEDED.
 
 ---
 

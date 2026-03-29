@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SILA — Masterplan v1.2.0</title>
+<title>SILA — Masterplan v1.3.0</title>
 <meta name="description" content="SILA Masterplan — Pipeline IA self-hosted de traduction et doublage vidéo multilingue. 18 sections, 14 principes, 10 briques IA, V1→V3.">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -234,8 +234,8 @@ function toggleTheme(){
 <div class="md-content">
 <h1 id="masterplan-pipeline-ia-de-traduction-doublage-video-multilingue">MASTERPLAN — Pipeline IA de Traduction &amp; Doublage Vidéo Multilingue</h1>
 <p><strong>Nom de code</strong> : <code>SILA — Seamless International Language Automation</code><br />
-<strong>Version du document</strong> : 1.2.0<br />
-<strong>Date</strong> : 2026-03-28<br />
+<strong>Version du document</strong> : 1.3.0<br />
+<strong>Date</strong> : 2026-03-29<br />
 <strong>Statut</strong> : Draft — En cours de validation<br />
 <strong>Auteur</strong> : Comité d'architecture (4 experts)<br />
 <strong>Licence projet</strong> : À définir (self-hosted, usage interne ou commercial)</p>
@@ -323,8 +323,8 @@ function toggleTheme(){
 </tr>
 <tr>
 <td>P2</td>
-<td><strong>Cascade de durée</strong></td>
-<td>Segmenter → budget → traduire avec contrainte → réécrire si nécessaire → ajuster prosodie TTS → time-stretch ≤1.25× en dernier recours.</td>
+<td><strong>Cascade de durée (qualité d'abord)</strong></td>
+<td>Le TTS a un débit naturel confortable (~10 chars/s EN) qui est non-négociable. La cascade adapte le contenu au budget, pas la vitesse de parole. Ordre : segmenter → budget → calculer max_chars (<code>budget_ms / 1000 × debit_naturel</code>) → traduire → réécrire LLM si texte &gt; max_chars → TTS à speed ≤1.2× → time-stretch ≤1.10× en dernier recours. Jamais sacrifier l'intelligibilité pour le timing.</td>
 </tr>
 <tr>
 <td>P3</td>
@@ -385,6 +385,16 @@ function toggleTheme(){
 <td>P14</td>
 <td><strong>Vidéo source intouchée</strong></td>
 <td>La piste vidéo n'est jamais réencodée avant le remux final.</td>
+</tr>
+<tr>
+<td>P15</td>
+<td><strong>Intelligibilité d'abord</strong></td>
+<td>La qualité d'écoute prime sur le respect du timing. Un segment compréhensible à speed=1.0 qui déborde de 20% vaut mieux qu'un segment calé au timing mais inintelligible à speed=2.5×. Le speed TTS ne dépasse jamais 1.2×. Le time-stretch ne dépasse jamais 1.10×. Au-delà, c'est le texte qui doit être raccourci, pas la voix accélérée.</td>
+</tr>
+<tr>
+<td>P16</td>
+<td><strong>Budget en caractères</strong></td>
+<td>Chaque segment porte un <code>max_chars</code> calculé depuis le <code>timing_budget_ms</code> et le débit naturel du TTS (~10 chars/s pour l'anglais, ~12 chars/s pour le français). La traduction et la réécriture doivent respecter ce budget. Formule : <code>max_chars = (timing_budget_ms / 1000) × debit_chars_s × 0.90</code> (marge 10%).</td>
 </tr>
 </tbody>
 </table>
@@ -608,7 +618,7 @@ function toggleTheme(){
 <li><strong>VRAM</strong> : ~8 Go estimé (4B paramètres BF16)</li>
 <li><strong>Benchmarks Mistral</strong> : bat ElevenLabs Flash v2.5 en naturalité (évaluations humaines), parité avec ElevenLabs v3</li>
 <li><strong>⚠️ Licence</strong> : poids open-weights, mais les voix de référence fournies sont CC-BY-NC 4.0. Le modèle "hérite" de cette licence selon HuggingFace. À clarifier : l'utilisation avec des voix propres (clonées depuis nos vidéos) est-elle exempte de la restriction NC ? Vérification juridique requise avant usage commercial.</li>
-<li><strong>⚠️ Maturité</strong> : sorti le 26 mars 2026 (2 jours). Zéro retour terrain. Écosystème Mistral déjà présent sur l'infra (avantage intégration).</li>
+<li><strong>⚠️ Maturité</strong> : sorti le 26 mars 2026. Zéro retour terrain. vLLM-Omni instable. Écosystème Mistral déjà présent sur l'infra (avantage intégration).</li>
 </ul>
 <h3 id="34-detail-du-llm-de-reecriture-v2">3.4 Détail du LLM de réécriture (V2)</h3>
 <h4 id="mistral-small-32-24b-principal">Mistral Small 3.2 24B (principal)</h4>
@@ -842,14 +852,15 @@ Phase 6: TRADUCTION (parallèle par langue, séquentiel par segment pour le cont
   ├── 6.2  Injecter glossaire + contexte narratif
   └── 6.3  Estimer durée cible → classer : fit_ok | rewrite_needed | review_required
 
-Phase 7: RÉÉCRITURE CONTRAINTE [V2+] (parallèle par segment)
-  └── 7.1  Si rewrite_needed : LLM local → variante courte respectant timing_budget_ms
+Phase 7: RÉÉCRITURE CONTRAINTE (obligatoire si texte &gt; max_chars)
+  ├── 7.1  Calculer max_chars = (budget_ms / 1000) × debit_naturel × 0.90
+  └── 7.2  Si len(texte_traduit) &gt; max_chars : LLM local → variante courte ≤ max_chars
 
 Phase 8: TTS / VOICE CLONING (parallèle par segment × langue)
-  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS / Voxtral TTS)
+  ├── 8.1  Générer audio TTS (CosyVoice / Qwen3-TTS / Voxtral TTS), speed max 1.2×
   ├── 8.2  Mesurer durée réelle
-  ├── 8.3  Si écart &gt; seuil : time-stretch ≤1.25× (pyrubberband)
-  └── 8.4  Si stretch &gt; 1.25× → review_required
+  ├── 8.3  Si écart &gt; seuil : time-stretch ≤1.10× (pyrubberband)
+  └── 8.4  Si stretch &gt; 1.10× → réécriture LLM obligatoire, pas d'accélération forcée
 
 Phase 9: ASSEMBLY AUDIO (séquentiel par langue)
   ├── 9.1  Placer chaque segment sur la timeline cible
@@ -1066,7 +1077,7 @@ utmos_score         : float|null — score qualité (V2+)
     &quot;preferred_segment_duration_ms&quot;: 6000,
     &quot;pause_split_threshold_ms&quot;: 400,
     &quot;crossfade_ms&quot;: 50,
-    &quot;max_stretch_ratio&quot;: 1.25,
+    &quot;max_stretch_ratio&quot;: 1.10,
     &quot;loudness_target_lufs&quot;: -16,
     &quot;tts_seed&quot;: 42
   },
@@ -1671,8 +1682,8 @@ data/projects/{project_id}/qc_report.json
 <td>Flag <code>review_required</code> + fallback voix générique</td>
 </tr>
 <tr>
-<td>Timing impossible (stretch &gt; 1.25×)</td>
-<td>Flag <code>review_required</code>, garder le segment stretché à 1.25×</td>
+<td>Timing impossible (stretch &gt; 1.10×)</td>
+<td>Réécriture LLM obligatoire. Si toujours hors budget après réécriture, flag <code>review_required</code>, garder l'audio à speed naturel</td>
 </tr>
 <tr>
 <td>Segment pathologique (overlap extrême, bruit)</td>
@@ -1779,7 +1790,7 @@ data/projects/{project_id}/qc_report.json
 <td>Segments dans le slot ±15%</td>
 <td>&gt; 85%</td>
 <td>&gt; 90%</td>
-<td>Manifeste</td>
+<td>Manifeste (mesuré APRÈS contrainte speed ≤1.2× et stretch ≤1.10×)</td>
 </tr>
 <tr>
 <td>Drift temporel moyen / segment</td>
@@ -1794,10 +1805,22 @@ data/projects/{project_id}/qc_report.json
 <td>Calcul post-assembly</td>
 </tr>
 <tr>
-<td>Segments stretchés &gt; 1.15×</td>
-<td>&lt; 15%</td>
-<td>&lt; 8%</td>
-<td>Manifeste</td>
+<td>Segments TTS générés à speed &gt; 1.2×</td>
+<td>0%</td>
+<td>0%</td>
+<td>Manifeste — l'intelligibilité est non-négociable</td>
+</tr>
+<tr>
+<td>Segments stretchés &gt; 1.10×</td>
+<td>0%</td>
+<td>0%</td>
+<td>Manifeste — au-delà, réécriture obligatoire</td>
+</tr>
+<tr>
+<td>Segments réécrits par LLM</td>
+<td>Mesurer baseline</td>
+<td>&lt; 30%</td>
+<td>Manifeste — indicateur d'adéquation traduction/budget</td>
 </tr>
 <tr>
 <td>Clipping rate</td>
@@ -2173,7 +2196,7 @@ data/projects/{project_id}/qc_report.json
 <tr>
 <td>TTS</td>
 <td><strong>Voxtral TTS 4B</strong> (Mistral)</td>
-<td>Open-weights, 9 langues, clonage 2-3s, streaming 100ms TTFA, bat ElevenLabs Flash v2.5. Mars 2026 — très récent, zéro retour terrain. vLLM-Omni requis. ⚠️ Licence à clarifier (CC-BY-NC via voix de ref). Challenger prioritaire.</td>
+<td>Open-weights, 9 langues, clonage 2-3s, streaming 100ms TTFA, bat ElevenLabs Flash v2.5. Mars 2026 — très récent, vLLM-Omni instable. ⚠️ Licence à clarifier (CC-BY-NC via voix de ref). Challenger prioritaire.</td>
 </tr>
 <tr>
 <td>TTS</td>
@@ -2373,7 +2396,7 @@ data/projects/{project_id}/qc_report.json
 </tr>
 <tr>
 <td><strong>Cascade de durée</strong></td>
-<td>Stratégie multi-étapes pour respecter le timing (traduction courte → TTS rapide → stretch léger)</td>
+<td>Stratégie qualité-first pour respecter le timing. Le TTS a un débit naturel non-négociable. On adapte le texte, pas la vitesse de parole. Ordre : calculer max_chars → traduire → réécrire LLM si texte &gt; max_chars → TTS speed ≤1.2× → stretch ≤1.10× en dernier recours.</td>
 </tr>
 <tr>
 <td><strong>Tronc commun</strong></td>
@@ -2481,10 +2504,19 @@ data/projects/{project_id}/qc_report.json
 <h3 id="adr-006-voxtral-tts-ajoute-comme-challenger-tts-mars-2026">ADR-006 : Voxtral TTS ajouté comme challenger TTS (mars 2026)</h3>
 <ul>
 <li><strong>Date</strong> : 2026-03-28</li>
-<li><strong>Contexte</strong> : Mistral a sorti Voxtral TTS 4B le 26 mars 2026. Open-weights, 9 langues, clonage 2-3s, streaming ~100ms TTFA, bat ElevenLabs Flash v2.5 selon évaluations humaines Mistral. Écosystème Mistral déjà présent sur l'infra HKCONSEILS (Ministral 14B, Magistral Small, LiteLLM). Serving via vLLM-Omni.</li>
-<li><strong>Décision</strong> : Ajouter Voxtral TTS comme 3ème candidat TTS à benchmarker en V2, aux côtés de CosyVoice 3.0 (principal) et Qwen3-TTS (alternatif). Ne pas switcher en V1 — stabiliser d'abord le pipeline avec CosyVoice (TTS 2 passes).</li>
-<li><strong>Risque licence</strong> : Les voix de référence fournies par Mistral sont CC-BY-NC 4.0, et le modèle sur HuggingFace "hérite" de cette licence. À clarifier : l'utilisation avec des voix propres (clonées depuis les vidéos source, pas les voix Mistral) lève-t-elle la restriction NC ? Vérification juridique requise avant usage commercial.</li>
-<li><strong>Conséquence</strong> : Le benchmark TTS V2 passe de 2 à 3 candidats. L'interface TTS abstraite (principe P12) permet d'intégrer Voxtral sans changer le pipeline.</li>
+<li><strong>Contexte</strong> : Mistral a sorti Voxtral TTS 4B le 26/03/2026. Open-weights, 9 langues, clonage 2-3s, streaming ~100ms TTFA, bat ElevenLabs Flash v2.5 selon évaluations humaines Mistral. Écosystème Mistral déjà présent sur l'infra HKCONSEILS. Serving via vLLM-Omni. Test bloqué : vLLM-Omni instable (sorti 26/03).</li>
+<li><strong>Décision</strong> : Ajouté comme 3ème candidat TTS à benchmarker en V2. Ne pas switcher en V1 — stabiliser d'abord le pipeline avec CosyVoice.</li>
+<li><strong>Risque licence</strong> : Voix de référence CC-BY-NC 4.0. À clarifier : usage avec voix propres lève-t-il la restriction NC ?</li>
+<li><strong>Conséquence</strong> : Benchmark TTS V2 passe de 2 à 3 candidats. Engine stub créé, flag --tts-engine ajouté au CLI.</li>
+</ul>
+<h3 id="adr-007-philosophie-qualite-first-p15-p16-mars-2026">ADR-007 : Philosophie qualité-first — P15, P16 (mars 2026)</h3>
+<ul>
+<li><strong>Date</strong> : 2026-03-29</li>
+<li><strong>Contexte</strong> : 3 tests bout en bout (test_001, test_002, test_003) montrent que forcer le TTS à speed &gt;2.0× produit des collapses (audio dégénéré) ou des résultats inintelligibles. Le QC à 51.9% est atteint en sacrifiant la qualité audio. Un doubleur humain ne parle jamais à 250% de sa vitesse naturelle — il reformule pour que ça tienne.</li>
+<li><strong>Décision</strong> : Le TTS a un débit naturel non-négociable (~10 chars/s EN). On adapte le contenu au budget, pas la vitesse de parole. Speed TTS max 1.2× (pas 2.5×). Stretch max 1.10× (pas 1.25×). La réécriture LLM devient le composant central de la cascade de durée (P2 révisé). Tout segment dont la traduction dépasse max_chars doit être réécrit.</li>
+<li><strong>Principes ajoutés</strong> : P15 (Intelligibilité d'abord), P16 (Budget en caractères : <code>max_chars = (budget_ms/1000) × debit × 0.90</code>).</li>
+<li><strong>Impact KPI</strong> : Le timing (±15%) est mesuré après contrainte speed ≤1.2× et stretch ≤1.10×. Segments à speed &gt;1.2× = 0% (cible). Segments stretchés &gt;1.10× = 0% (cible).</li>
+<li><strong>Conséquence</strong> : La réécriture passe de correctif optionnel (5/52 segments réécrits = 9.6%) à composant obligatoire pour tout segment hors budget. Le seuil inclut désormais les REVIEW_REQUIRED en plus des REWRITE_NEEDED.</li>
 </ul>
 <hr />
 <p><em>Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.</em></p>
