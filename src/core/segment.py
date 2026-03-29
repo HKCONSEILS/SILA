@@ -21,6 +21,8 @@ PAUSE_SPLIT_THRESHOLD_MS = 400     # S2 : pause > 400ms
 PAUSE_FORCE_SPLIT_MS = 200         # S4 : forcer coupe sur pause > 200ms
 STRONG_PUNCTUATION = ".?!"         # S2 : ponctuation forte
 WEAK_PUNCTUATION = ","             # S4 : ponctuation faible
+PHRASE_SEARCH_THRESHOLD_MS = 9000  # seuil recherche phrase (etait NOMINAL_MAX=8000)
+MIN_BUDGET_EFFECTIVE_MS = 6000     # plancher CosyVoice (overhead ~3-4s)
 
 
 def build_segments_from_words(
@@ -85,7 +87,7 @@ def build_segments_from_words(
         # PHRASE-AWARE: if approaching hard cap, look back for sentence boundary
         import os
         phrase_aware_enabled = os.environ.get("SILA_NO_PHRASE_AWARE", "0") != "1"
-        if phrase_aware_enabled and current_duration >= NOMINAL_MAX_DURATION_MS and len(current_words) > 1:
+        if phrase_aware_enabled and current_duration >= PHRASE_SEARCH_THRESHOLD_MS and len(current_words) > 1:
             # Search backwards for a word ending with strong punctuation
             best_cut = -1
             min_duration_for_cut = current_start_ms + NOMINAL_MIN_DURATION_MS
@@ -98,6 +100,12 @@ def build_segments_from_words(
                 if any(w_text.endswith(p) for p in (".?!;:")):
                     best_cut = j
                     break
+            if best_cut > 0:
+                # Guard: don't cut if resulting segment < MIN_BUDGET_EFFECTIVE_MS
+                cut_end = current_words[best_cut].get("end_ms", 0)
+                resulting_duration = cut_end - current_start_ms
+                if resulting_duration < MIN_BUDGET_EFFECTIVE_MS:
+                    best_cut = -1  # Cancel cut, let segment grow
             if best_cut > 0:
                 # Cut at the sentence boundary
                 kept = current_words[:best_cut + 1]
@@ -161,8 +169,12 @@ def _merge_short_segments(segments: list[Segment]) -> list[Segment]:
 
     merged: list[Segment] = [segments[0]]
     for seg in segments[1:]:
-        if seg.duration_ms < MIN_SEGMENT_DURATION_MS and merged:
+        if seg.duration_ms < MIN_BUDGET_EFFECTIVE_MS and merged:
             prev = merged[-1]
+            # Guard: don't merge if combined would exceed hard cap
+            if prev.duration_ms + seg.duration_ms > HARD_CAP_DURATION_MS:
+                merged.append(seg)
+                continue
             merged[-1] = Segment(
                 segment_id=prev.segment_id,
                 speaker_id=prev.speaker_id,
