@@ -510,12 +510,14 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 logger.warning("TTS text too long for %s (%d chars, max %d) — truncating", seg_id, len(text), max_chars)
                 text = text[:max_chars].rsplit(" ", 1)[0]
 
-            # --- Adaptive speed TTS ---
+            # --- TTS with adaptive speed + retry loop (max 3 attempts) ---
+            MAX_TTS_ATTEMPTS = 3
             if output_path.exists():
                 import soundfile as sf
                 info = sf.info(str(output_path))
                 tts_result_ms = int(info.duration * 1000)
                 tts_speed_used = 1.0
+                tts_attempts = 0
                 logger.info("TTS [%d/%d] %s: cached (%dms)", i + 1, len(translations), seg_id, tts_result_ms)
             else:
                 from src.core.timing import NATURAL_SPEECH_RATES as _RATES
@@ -523,30 +525,81 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 est_duration_s = len(text) / _debit
                 budget_s = budget_ms / 1000
                 raw_speed = est_duration_s / budget_s if budget_s > 0 else 1.0
-                adaptive_speed = max(0.8, min(MAX_SPEED_RATIO, raw_speed))
+                speed = max(0.8, min(MAX_SPEED_RATIO, raw_speed))
 
-                logger.info("TTS [%d/%d] %s (speed=%.2f, est=%.1fs, budget=%.1fs): %s",
-                            i + 1, len(translations), seg_id, adaptive_speed, est_duration_s, budget_s, text[:60])
-                tts_result = engine.synthesize(
-                    text=text,
-                    output_path=output_path,
-                    target_lang=target_lang,
-                    speed=adaptive_speed,
-                )
-                tts_result_ms = tts_result.duration_ms
-                tts_speed_used = adaptive_speed
+                best_ms = None
+                best_delta = float("inf")
+                best_path = None
+                best_speed = speed
+                collapse_threshold = budget_ms * 0.10
 
-                # Collapse retry
-                if tts_result_ms < budget_ms * 0.10 and budget_ms > 2000:
-                    logger.warning("TTS collapsed for %s (%dms) — retrying at speed=1.0", seg_id, tts_result_ms)
+                for attempt in range(1, MAX_TTS_ATTEMPTS + 1):
+                    attempt_path = tts_dir / f"{seg_id}_a{attempt}.wav"
+                    attempt_seed = 42 + (attempt - 1)
+
+                    logger.info("TTS [%d/%d] %s attempt %d (speed=%.2f, seed=%d): %s",
+                                i + 1, len(translations), seg_id, attempt, speed, attempt_seed, text[:50])
+
                     tts_result = engine.synthesize(
                         text=text,
-                        output_path=output_path,
+                        output_path=attempt_path,
                         target_lang=target_lang,
-                        speed=1.0,
+                        speed=speed,
                     )
-                    tts_result_ms = tts_result.duration_ms
-                    tts_speed_used = 1.0
+                    dur = tts_result.duration_ms
+
+                    # Collapse check
+                    if dur < collapse_threshold and budget_ms > 2000:
+                        logger.warning("TTS attempt %d collapsed (%dms) — skipping", attempt, dur)
+                        attempt_path.unlink(missing_ok=True)
+                        speed = 1.0  # Reset to default for next attempt
+                        continue
+
+                    delta = abs(dur - budget_ms)
+                    in_budget = delta <= budget_ms * 0.15
+
+                    if in_budget or delta < best_delta:
+                        # This attempt is better
+                        if best_path and best_path.exists():
+                            best_path.unlink(missing_ok=True)
+                        best_ms = dur
+                        best_delta = delta
+                        best_path = attempt_path
+                        best_speed = speed
+
+                    if in_budget:
+                        logger.info("TTS %s attempt %d: %dms — in budget (delta %dms)", seg_id, attempt, dur, delta)
+                        break
+
+                    # Adjust speed for next attempt
+                    if dur > budget_ms:
+                        speed = min(MAX_SPEED_RATIO, speed + 0.1)
+                        logger.info("TTS %s attempt %d: %dms too long — speed up to %.2f", seg_id, attempt, dur, speed)
+                    else:
+                        speed = max(0.8, speed - 0.1)
+                        logger.info("TTS %s attempt %d: %dms too short — slow down to %.2f", seg_id, attempt, dur, speed)
+
+                # Use best result
+                if best_path and best_path.exists():
+                    import shutil
+                    shutil.move(str(best_path), str(output_path))
+                    tts_result_ms = best_ms
+                else:
+                    # All attempts collapsed — generate silence
+                    import numpy as np
+                    import soundfile as sf
+                    silence = np.zeros(int(budget_ms * 48), dtype=np.float32)
+                    sf.write(str(output_path), silence, 48000)
+                    tts_result_ms = budget_ms
+                    best_speed = 1.0
+
+                tts_speed_used = best_speed
+                tts_attempts = attempt
+
+                # Cleanup leftover attempt files
+                for a in range(1, MAX_TTS_ATTEMPTS + 1):
+                    p = tts_dir / f"{seg_id}_a{a}.wav"
+                    p.unlink(missing_ok=True)
 
             # --- Time-stretch if needed ---
             stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
@@ -606,6 +659,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "tts_input_text": text[:200],
                 "tts_overhead_ms": tts_overhead_ms,
                 "tts_speed_used": round(tts_speed_used, 3) if isinstance(tts_speed_used, float) else 1.0,
+                "tts_attempts": tts_attempts if isinstance(tts_attempts, int) else 1,
                 "rewrite_reason": trans.get("rewrite_reason"),
             })
 
