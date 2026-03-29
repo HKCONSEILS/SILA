@@ -476,18 +476,12 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
         else:
             engine = EngineClass(model_dir=model_path)
 
-        # Extract voice reference from source audio (first 10s with speech)
-        # Use vocals.wav (Demucs output) for cleaner voice reference
+        # Build multi-segment voice reference (P6 masterplan)
         vocals_path = project_dir / "extracted" / "vocals.wav"
         audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
-        # Use start of first segment as voice reference
         segments = manifest["segments"]
-        if segments:
-            ref_start = max(0, segments[0]["start_ms"] - 500)
-            ref_end = min(ref_start + 10000, segments[-1]["end_ms"])
-        else:
-            ref_start, ref_end = 0, 10000
-        engine.set_voice_reference(audio_path, start_ms=ref_start, end_ms=ref_end)
+        n_ref = engine.set_voice_reference_multi(audio_path, segments, n_best=5, max_duration_s=30.0)
+        logger.info("Voice reference: %d segments selected", n_ref)
 
         translations_key = f"_translations_{target_lang}"
         if translations_key not in manifest:
