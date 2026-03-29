@@ -37,6 +37,7 @@ class LLMRewriteEngine(RewriterInterface):
         api_base: str | None = None,
         model: str | None = None,
         timeout: float = 120.0,
+        enable_thinking: bool = True,
     ):
         self.api_base = api_base or os.environ.get(
             "SILA_LLM_API_BASE", "http://192.168.1.225:8080"
@@ -45,6 +46,7 @@ class LLMRewriteEngine(RewriterInterface):
             "SILA_LLM_MODEL", "Qwen3.5-27B-Q8_0.gguf"
         )
         self.timeout = timeout
+        self.enable_thinking = enable_thinking
         self._client = None
 
     def _get_client(self) -> httpx.Client:
@@ -104,6 +106,10 @@ class LLMRewriteEngine(RewriterInterface):
             max_chars=max_chars,
             text=text,
         )
+
+        # Prepend /no_think if thinking disabled
+        if not self.enable_thinking:
+            prompt = "/no_think\n" + prompt
 
         try:
             # Attempt 1: low max_tokens (fast, works if model responds directly)
