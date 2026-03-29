@@ -193,19 +193,13 @@ def remux(
     video_path: Path,
     audio_path: Path,
     output_path: Path,
+    target_lang: str = "en",
 ) -> Path:
     """Remux video source + audio final en MP4.
 
     Voir MASTERPLAN.md §6.1 Phase 11.1 — FFmpeg remux (video copy + audio AAC).
-    Principe P14 : video source intouchee (copy, pas de reencodage).
-
-    Args:
-        video_path: Video source (piste video copiee sans reencodage).
-        audio_path: Audio final (encode en AAC).
-        output_path: MP4 de sortie.
-
-    Returns:
-        Chemin vers le MP4 final.
+    P14 : video copy (jamais reencodee). P5 : audio 48kHz.
+    +faststart pour streaming. Metadata langue sur la piste audio.
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     _run_ffmpeg(
@@ -215,12 +209,15 @@ def remux(
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-ar", "48000",
             "-map", "0:v:0",
             "-map", "1:a:0",
+            f"-metadata:s:a:0", f"language={target_lang}",
+            "-movflags", "+faststart",
             "-shortest",
             str(output_path),
         ],
         description="remux",
     )
-    logger.info("Remuxed: %s", output_path)
+    logger.info("Remuxed: %s (lang=%s, faststart)", output_path, target_lang)
     return output_path

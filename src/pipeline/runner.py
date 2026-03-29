@@ -807,7 +807,7 @@ def run_export(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         mix_audio = project_dir / "mix" / f"mix_{target_lang}.wav"
         output_video = exports_dir / f"output_{target_lang}.mp4"
 
-        remux(source_video, mix_audio, output_video)
+        remux(source_video, mix_audio, output_video, target_lang=target_lang)
 
         # Update outputs in manifest
         manifest["outputs"][target_lang] = {
