@@ -82,8 +82,10 @@ def build_segments_from_words(
         current_duration = word_end - current_start_ms
         text_so_far = word.get("text", "")
 
-        # PHRASE-AWARE: if approaching hard cap (>8s), look back for sentence boundary
-        if current_duration >= NOMINAL_MAX_DURATION_MS and len(current_words) > 1:
+        # PHRASE-AWARE: if approaching hard cap, look back for sentence boundary
+        import os
+        phrase_aware_enabled = os.environ.get("SILA_NO_PHRASE_AWARE", "0") != "1"
+        if phrase_aware_enabled and current_duration >= NOMINAL_MAX_DURATION_MS and len(current_words) > 1:
             # Search backwards for a word ending with strong punctuation
             best_cut = -1
             min_duration_for_cut = current_start_ms + NOMINAL_MIN_DURATION_MS

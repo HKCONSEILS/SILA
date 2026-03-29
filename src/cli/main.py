@@ -67,6 +67,7 @@ def _setup_logging(verbose: bool) -> None:
     help="Mode de relance (ex: 'failed --lang en', 'segment seg_0042 --lang en').",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
+@click.option("--no-phrase-aware", is_flag=True, default=False, help="Disable phrase-aware segmentation.")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -83,6 +84,7 @@ def cli(
     retry: str | None,
     verbose: bool,
     tts_engine: str,
+    no_phrase_aware: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -93,6 +95,10 @@ def cli(
     console.print(f"  {source_lang} -> {target_lang}")
 
     try:
+        if no_phrase_aware:
+            import os
+            os.environ["SILA_NO_PHRASE_AWARE"] = "1"
+            console.print("  Phrase-aware: DISABLED")
         console.print(f"  TTS engine: {tts_engine}")
         manifest = run_pipeline(
             video_path=input_video,
