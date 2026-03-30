@@ -82,6 +82,8 @@ def _setup_logging(verbose: bool) -> None:
     help="Path to project glossary JSON file for terminology consistency.")
 @click.option("--asr-engine", default="whisperx", type=click.Choice(["whisperx", "qwen3", "voxtral"]),
     help="ASR engine (default: whisperx). qwen3 and voxtral are stubs.")
+@click.option("--force-reprocess", is_flag=True, default=False,
+    help="Ignore cache and reprocess all segments (debug).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -105,6 +107,7 @@ def cli(
     rewrite_endpoint: str | None,
     glossary: Path | None,
     asr_engine: str,
+    force_reprocess: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -152,6 +155,7 @@ def cli(
             rewrite_endpoint=rewrite_endpoint,
             glossary_path=str(glossary) if glossary else None,
             asr_engine=asr_engine,
+            force_reprocess=force_reprocess,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
