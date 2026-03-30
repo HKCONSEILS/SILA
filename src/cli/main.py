@@ -80,6 +80,8 @@ def _setup_logging(verbose: bool) -> None:
     help="Endpoint API du LLM de rewrite (défaut: Qwen3.5 sur LXC 225). Ex: http://localhost:8081")
 @click.option("--glossary", default=None, type=click.Path(exists=True, path_type=Path),
     help="Path to project glossary JSON file for terminology consistency.")
+@click.option("--asr-engine", default="whisperx", type=click.Choice(["whisperx", "qwen3", "voxtral"]),
+    help="ASR engine (default: whisperx). qwen3 and voxtral are stubs.")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -102,6 +104,7 @@ def cli(
     diarize: bool,
     rewrite_endpoint: str | None,
     glossary: Path | None,
+    asr_engine: str,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -148,6 +151,7 @@ def cli(
             diarize_enabled=diarize,
             rewrite_endpoint=rewrite_endpoint,
             glossary_path=str(glossary) if glossary else None,
+            asr_engine=asr_engine,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")

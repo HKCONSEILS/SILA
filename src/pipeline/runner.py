@@ -169,12 +169,12 @@ def run_demucs(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False) -> dict:
-    """Phase 3 : ASR via WhisperX. V2: optional diarization."""
-    from src.engines.asr.whisperx_engine import WhisperXEngine
+def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False, asr_engine: str = "whisperx") -> dict:
+    """Phase 3 : ASR — decomposed into 3.1 Transcribe + 3.2 Align + 3.3 Diarize.
 
+    V2: modular pipeline with interchangeable engines (P12).
+    """
     project_dir = manifest_path.parent
-    # Use vocals.wav (Demucs output) if available, else original audio
     vocals_path = project_dir / "extracted" / "vocals.wav"
     audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
     transcript_path = project_dir / "asr" / "transcript.json"
@@ -191,29 +191,74 @@ def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False) -> dict:
     update_stage(manifest, "asr", StageStatus.RUNNING)
     save_manifest(manifest, manifest_path)
 
+    source_lang = manifest["project"]["source_lang"]
+
     try:
-        engine = WhisperXEngine()
-        source_lang = manifest["project"]["source_lang"]
-        result = engine.transcribe(audio_path, language=source_lang, diarize=diarize)
-        engine.unload()
+        # Phase 3.1: Transcription
+        logger.info("Phase 3.1 — ASR Transcription (%s)", asr_engine)
+        if asr_engine == "whisperx":
+            from src.engines.asr.whisperx_asr import WhisperXASR
+            asr = WhisperXASR()
+        elif asr_engine == "qwen3":
+            from src.engines.asr.qwen3_asr import Qwen3ASR
+            asr = Qwen3ASR()
+        elif asr_engine == "voxtral":
+            from src.engines.asr.voxtral_asr import VoxtralASR
+            asr = VoxtralASR()
+        else:
+            raise ValueError(f"Unknown ASR engine: {asr_engine}")
+
+        raw_transcript = asr.transcribe(audio_path, language=source_lang)
+        asr.unload()
+
+        # Phase 3.2: Alignment
+        logger.info("Phase 3.2 — Word-level Alignment")
+        from src.engines.asr.whisperx_align import WhisperXAlign
+        aligner = WhisperXAlign()
+        aligned = aligner.align(raw_transcript, audio_path)
+
+        # Phase 3.3: Diarization (optional)
+        if diarize:
+            logger.info("Phase 3.3 — Diarization")
+            from src.engines.asr.whisperx_diarize import WhisperXDiarize
+            diarizer = WhisperXDiarize()
+            diarize_result = diarizer.diarize(audio_path, aligned=aligned)
+            # aligned.segments is updated in-place by diarizer
+
+        # Convert to word list
+        words = []
+        for seg in aligned.segments:
+            seg_speaker = seg.get("speaker", "spk_0")
+            for w in seg.get("words", []):
+                if "start" not in w or "end" not in w:
+                    continue
+                words.append({
+                    "text": w["word"].strip(),
+                    "start_ms": int(w["start"] * 1000),
+                    "end_ms": int(w["end"] * 1000),
+                    "confidence": w.get("score", 0.0),
+                    "speaker": w.get("speaker", seg_speaker),
+                })
+
+        n_speakers = len(set(w.get("speaker", "spk_0") for w in words))
+        logger.info("Phase 3 done: %d words, %d speaker(s)", len(words), n_speakers)
 
         transcript_data = {
-            "language": result.language,
-            "words": result.words,
-            "word_count": len(result.words),
+            "language": source_lang,
+            "words": words,
+            "word_count": len(words),
         }
         with open(transcript_path, "w") as f:
             json.dump(transcript_data, f, indent=2, ensure_ascii=False)
 
-        manifest["_words"] = result.words
-        update_stage(manifest, "asr", StageStatus.COMPLETED, segments_count=len(result.words))
+        manifest["_words"] = words
+        update_stage(manifest, "asr", StageStatus.COMPLETED, segments_count=len(words))
     except Exception as exc:
         update_stage(manifest, "asr", StageStatus.FAILED, error=str(exc))
         save_manifest(manifest, manifest_path)
         raise
 
     save_manifest(manifest, manifest_path)
-    logger.info("Phase 3 (ASR) done: %d words", len(result.words))
     return manifest
 
 
@@ -945,6 +990,7 @@ def run_pipeline(
     diarize_enabled: bool = False,
     rewrite_endpoint: str | None = None,
     glossary_path: str | None = None,
+    asr_engine: str = "whisperx",
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -1007,7 +1053,7 @@ def run_pipeline(
     logger.info("PHASE 3 — ASR (WhisperX)")
     logger.info("=" * 60)
     t_asr = time.time()
-    manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled)
+    manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled, asr_engine=asr_engine)
     logger.info("ASR took %.1fs", time.time() - t_asr)
 
     # Phase 4 : Segmentation
