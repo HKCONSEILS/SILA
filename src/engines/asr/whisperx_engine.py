@@ -116,13 +116,14 @@ class WhisperXEngine(ASRInterface):
 
         try:
             logger.info("Loading pyannote diarization pipeline...")
-            diarize_model = whisperx.DiarizationPipeline(
-                use_auth_token=hf_token,
+            from whisperx.diarize import DiarizationPipeline, assign_word_speakers
+            diarize_model = DiarizationPipeline(
+                token=hf_token,
                 device=self.device,
             )
             logger.info("Running diarization...")
             diarize_segments = diarize_model(audio)
-            result = whisperx.assign_word_speakers(diarize_segments, aligned_result)
+            result = assign_word_speakers(diarize_segments, aligned_result)
 
             # Count speakers
             speakers = set()
