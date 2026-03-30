@@ -1124,6 +1124,13 @@ def run_pipeline(
         t_demucs = time.time()
         manifest = run_demucs(manifest, manifest_path)
         logger.info("Demucs took %.1fs", time.time() - t_demucs)
+        # Free GPU memory after Demucs
+        import gc
+        import torch
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info("GPU memory freed after Demucs (gc + empty_cache)")
     else:
         logger.info("Demucs disabled (default). Use --demucs for videos with background music.")
 
@@ -1134,6 +1141,13 @@ def run_pipeline(
     t_asr = time.time()
     manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled, asr_engine=asr_engine)
     logger.info("ASR took %.1fs", time.time() - t_asr)
+    # Free GPU memory after ASR
+    import gc as _gc; import torch as _torch
+    _gc.collect()
+    if _torch.cuda.is_available():
+        _torch.cuda.empty_cache()
+    logger.info("GPU memory freed after ASR")
+
     _metrics.record("asr", "end", duration_s=round(time.time() - t_asr, 1))
 
     # Phase 4 : Segmentation
@@ -1174,6 +1188,13 @@ def run_pipeline(
         t_tts = time.time()
         manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled, force_reprocess=force_reprocess)
         logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
+        # Free GPU memory after TTS
+        import gc as _gc3; import torch as _tc3
+        _gc3.collect()
+        if _tc3.cuda.is_available():
+            _tc3.cuda.empty_cache()
+        logger.info("GPU memory freed after TTS")
+
         _metrics.record("tts", "end", lang=lang, duration_s=round(time.time() - t_tts, 1))
 
         # Phase 9 : Assembly
