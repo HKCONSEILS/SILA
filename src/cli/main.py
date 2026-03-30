@@ -73,7 +73,8 @@ def _setup_logging(verbose: bool) -> None:
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
 @click.option("--phrase-aware", is_flag=True, default=False, help="Enable phrase-aware segmentation (off by default).")
-@click.option("--demucs", is_flag=True, default=False, help="Enable Demucs vocal separation (for videos with background music).")
+@click.option("--demucs", type=click.Choice(["on", "off", "auto"]), default="off",
+    help="Demucs vocal separation: on, off (default), auto (SNR detection).")
 @click.option("--diarize", is_flag=True, default=False, help="Enable multi-speaker diarization via pyannote (requires HF token).")
 @click.option("--rewrite-endpoint", default=None, type=str,
     help="Endpoint API du LLM de rewrite (défaut: Qwen3.5 sur LXC 225). Ex: http://localhost:8081")
@@ -122,8 +123,8 @@ def cli(
             os.environ["SILA_PHRASE_AWARE"] = "1"
             console.print("  Phrase-aware: ENABLED")
         console.print(f"  TTS engine: {tts_engine}")
-        if demucs:
-            console.print("  Demucs: ENABLED")
+        if demucs != "off":
+            console.print(f"  Demucs: {demucs.upper()}")
         if diarize:
             console.print("  Diarize: ENABLED")
         if rewrite_endpoint:
@@ -137,7 +138,8 @@ def cli(
             project_id=project_id,
             from_stage=from_stage,
             tts_engine=tts_engine,
-            demucs_enabled=demucs,
+            demucs_enabled=(demucs == "on"),
+            demucs_auto=(demucs == "auto"),
             diarize_enabled=diarize,
             rewrite_endpoint=rewrite_endpoint,
         )

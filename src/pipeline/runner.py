@@ -926,6 +926,7 @@ def run_pipeline(
     from_stage: str | None = None,
     tts_engine: str = "cosyvoice",
     demucs_enabled: bool = False,
+    demucs_auto: bool = False,
     diarize_enabled: bool = False,
     rewrite_endpoint: str | None = None,
     target_langs: list[str] | None = None,
@@ -961,6 +962,20 @@ def run_pipeline(
     manifest = run_extract(manifest, manifest_path)
 
     # Phase 2 : Demucs (optional, off by default — ADR-008)
+    # V2: auto-detection via SNR analysis
+    if demucs_auto:
+        from src.media.snr_detect import detect_background_audio
+        audio_48k = manifest_path.parent / "extracted" / "audio_48k.wav"
+        logger.info("=" * 60)
+        logger.info("PHASE 2a — SNR DETECTION (auto Demucs)")
+        logger.info("=" * 60)
+        snr_result = detect_background_audio(str(audio_48k))
+        manifest["snr_detection"] = snr_result
+        save_manifest(manifest, manifest_path)
+        demucs_enabled = snr_result["has_background"]
+        logger.info("SNR auto-detection: ratio=%.4f -> %s (demucs=%s)",
+                    snr_result["background_ratio"], snr_result["recommendation"], demucs_enabled)
+
     if demucs_enabled:
         logger.info("=" * 60)
         logger.info("PHASE 2 — DEMUCS (vocal separation)")
