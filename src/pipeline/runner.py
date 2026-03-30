@@ -674,6 +674,21 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             theoretical_ms = int((tts_input_chars / debit) * 1000)
             tts_overhead_ms = tts_result_ms - theoretical_ms
 
+            # V2: DNSMOS quality scoring per segment
+            dnsmos_score = {}
+            try:
+                from src.engines.qc.dnsmos_engine import DNSMOSEngine
+                if not hasattr(run_tts, '_dnsmos'):
+                    run_tts._dnsmos = DNSMOSEngine()
+                dnsmos_score = run_tts._dnsmos.score(final_path)
+                logger.info("DNSMOS %s: ovrl=%.2f sig=%.2f bak=%.2f p808=%.2f",
+                           seg_id, dnsmos_score.get("ovrl_mos", 0),
+                           dnsmos_score.get("sig_mos", 0),
+                           dnsmos_score.get("bak_mos", 0),
+                           dnsmos_score.get("p808_mos", 0))
+            except Exception as exc:
+                logger.warning("DNSMOS scoring failed for %s: %s", seg_id, exc)
+
             tts_outputs.append({
                 "segment_id": seg_id,
                 "audio_path": str(final_path),
@@ -690,6 +705,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "tts_speed_used": round(tts_speed_used, 3) if isinstance(tts_speed_used, float) else 1.0,
                 "tts_attempts": tts_attempts if isinstance(tts_attempts, int) else 1,
                 "rewrite_reason": trans.get("rewrite_reason"),
+                "dnsmos": dnsmos_score,
             })
 
         engine.unload()
@@ -808,13 +824,17 @@ def run_qc(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         for tts_out in tts_outputs:
             audio_path = Path(tts_out["audio_path"])
             result = engine.check(audio_path, tts_out["timing_budget_ms"])
-            segments_qc.append({
+            seg_qc = {
                 "segment_id": tts_out["segment_id"],
                 "budget_ms": tts_out["timing_budget_ms"],
                 "actual_ms": result.duration_ms,
                 "delta_ms": result.timing_delta_ms,
                 "flags": result.flags,
-            })
+            }
+            # V2: pass DNSMOS scores through to QC report
+            if "dnsmos" in tts_out:
+                seg_qc["dnsmos"] = tts_out["dnsmos"]
+            segments_qc.append(seg_qc)
 
         # Mix-level checks (loudness, true peak, duration)
         mix_path = project_dir / "mix" / f"mix_{target_lang}.wav"
