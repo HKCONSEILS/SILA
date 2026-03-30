@@ -803,10 +803,14 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             }
             tts_outputs.append(_tts_entry)
 
-            # Record TTS segment metric
+            # Record TTS segment metric + emit event
             try:
                 _metrics.record("tts_segment", "done", segment_id=seg_id,
                                duration_ms=tts_result_ms, budget_ms=budget_ms)
+                from src.pipeline.events import event_bus as _eb
+                _job_id_tts = manifest.get("project", {}).get("project_id", "")
+                _eb.segment_done(_job_id_tts, seg_id, target_lang, tts_result_ms, budget_ms)
+                _eb.progress(_job_id_tts, done=i+1, total=len(translations), phase="tts", lang=target_lang)
             except Exception:
                 pass
 
@@ -1066,6 +1070,7 @@ def run_pipeline(
     asr_engine: str = "whisperx",
     force_reprocess: bool = False,
     multitrack: bool = False,
+    job_id: str | None = None,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -1095,6 +1100,10 @@ def run_pipeline(
     )
     _metrics = PipelineMetrics(manifest_path.parent)
     _metrics.record("pipeline", "start")
+
+    # Event bus for WebSocket streaming
+    from src.pipeline.events import event_bus as _event_bus
+    _job_id = job_id or manifest["project"]["project_id"]
 
     # Phase 1 : Extract
     logger.info("=" * 60)
@@ -1164,38 +1173,63 @@ def run_pipeline(
         _glossary = load_glossary(glossary_path)
 
     all_langs = target_langs if target_langs else [target_lang]
+
+    # === BATCH 1: Translation + Rewrite for ALL languages (fast, CPU/LLM) ===
+    logger.info("=" * 60)
+    logger.info("BATCH 1 — TRANSLATION + REWRITE (all %d languages)", len(all_langs))
+    logger.info("=" * 60)
     for lang_idx, lang in enumerate(all_langs):
-        logger.info("=" * 60)
-        logger.info("LANGUAGE %d/%d — %s", lang_idx + 1, len(all_langs), lang.upper())
-        logger.info("=" * 60)
+        logger.info("--- Language %d/%d — %s ---", lang_idx + 1, len(all_langs), lang.upper())
 
         # Phase 6 : Translation
+        _event_bus.phase_started(_job_id, "translation", lang=lang)
         logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
         t_mt = time.time()
         manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary, force_reprocess=force_reprocess)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
+        _event_bus.phase_completed(_job_id, "translation", lang=lang)
         _metrics.record("translate", "end", lang=lang, duration_s=round(time.time() - t_mt, 1))
 
         # Phase 7 : Rewrite (LLM constrained)
+        _event_bus.phase_started(_job_id, "rewrite", lang=lang)
         logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
         t_rw = time.time()
         manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint, glossary=_glossary)
         logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
+        _event_bus.phase_completed(_job_id, "rewrite", lang=lang)
         _metrics.record("rewrite", "end", lang=lang, duration_s=round(time.time() - t_rw, 1))
 
-        # Phase 8 : TTS
-        logger.info("PHASE 8 — TTS (CosyVoice3) [%s]", lang)
+    # Free GPU memory before TTS batch
+    import gc as _gc_pre; import torch as _tc_pre
+    _gc_pre.collect()
+    if _tc_pre.cuda.is_available():
+        _tc_pre.cuda.empty_cache()
+
+    # === BATCH 2: TTS for ALL languages (GPU-intensive, sequential) ===
+    logger.info("=" * 60)
+    logger.info("BATCH 2 — TTS (all %d languages, sequential GPU)", len(all_langs))
+    logger.info("=" * 60)
+    for lang_idx, lang in enumerate(all_langs):
+        _event_bus.phase_started(_job_id, "tts", lang=lang)
+        logger.info("PHASE 8 — TTS (CosyVoice3) [%s] (%d/%d)", lang, lang_idx + 1, len(all_langs))
         t_tts = time.time()
         manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled, force_reprocess=force_reprocess)
         logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
-        # Free GPU memory after TTS
+        _event_bus.phase_completed(_job_id, "tts", lang=lang)
+        # Free GPU memory after each language TTS
         import gc as _gc3; import torch as _tc3
         _gc3.collect()
         if _tc3.cuda.is_available():
             _tc3.cuda.empty_cache()
-        logger.info("GPU memory freed after TTS")
-
+        logger.info("GPU memory freed after TTS [%s]", lang)
         _metrics.record("tts", "end", lang=lang, duration_s=round(time.time() - t_tts, 1))
+
+    # === BATCH 3: Assembly + QC + Export for ALL languages ===
+    logger.info("=" * 60)
+    logger.info("BATCH 3 — ASSEMBLY + QC + EXPORT (all %d languages)", len(all_langs))
+    logger.info("=" * 60)
+    for lang_idx, lang in enumerate(all_langs):
+        logger.info("--- Language %d/%d — %s ---", lang_idx + 1, len(all_langs), lang.upper())
 
         # Phase 9 : Assembly
         logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
@@ -1216,6 +1250,7 @@ def run_pipeline(
     save_manifest(manifest, manifest_path)
 
     logger.info("=" * 60)
+    _event_bus.job_completed(_job_id, total_time_s=round(total_time, 1))
     logger.info("PIPELINE COMPLETE — %.1fs total", total_time)
     logger.info("=" * 60)
     return manifest

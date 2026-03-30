@@ -1,6 +1,7 @@
-"""SILA API — minimal FastAPI wrapper around the CLI pipeline.
+"""SILA API — FastAPI with WebSocket real-time progress.
 
-4 routes: POST /jobs, GET /jobs, GET /jobs/{id}, GET /jobs/{id}/download/{lang}
+Routes: POST /jobs, GET /jobs, GET /jobs/{id}, GET /jobs/{id}/download/{lang}
+WebSocket: ws://host:8000/ws/jobs/{id}
 """
 
 from __future__ import annotations
@@ -9,30 +10,57 @@ import glob
 import json
 import os
 import shutil
-import subprocess
+import sys
+import threading
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
-app = FastAPI(title="SILA API", version="2.0")
+app = FastAPI(title="SILA API", version="3.0")
 
 PROJECTS_DIR = os.environ.get("SILA_PROJECTS_DIR", "/opt/sila/projects")
 APP_DIR = "/opt/sila/app"
 
+# Ensure app is in path for imports
+if APP_DIR not in sys.path:
+    sys.path.insert(0, APP_DIR)
 
-def _run_pipeline(cmd: list[str], job_dir: str):
-    """Run pipeline as subprocess, log to job directory."""
-    log_path = os.path.join(job_dir, "pipeline.log")
-    with open(log_path, "w") as log:
-        subprocess.run(cmd, cwd=APP_DIR, stdout=log, stderr=subprocess.STDOUT)
+from src.pipeline.events import event_bus
+
+
+def _run_pipeline_thread(job_id: str, input_path: str, target_langs: str,
+                         demucs: str, diarize: bool, glossary: str | None,
+                         rewrite_endpoint: str | None):
+    """Run pipeline in a thread (shares memory with FastAPI for event bus)."""
+    try:
+        from src.pipeline.runner import run_pipeline
+
+        langs = [l.strip() for l in target_langs.split(",")]
+        event_bus.phase_started(job_id, "pipeline")
+
+        run_pipeline(
+            video_path=Path(input_path),
+            source_lang="fr",
+            target_lang=langs[0],
+            target_langs=langs,
+            data_dir=Path(PROJECTS_DIR),
+            project_id=job_id,
+            demucs_enabled=(demucs == "on"),
+            demucs_auto=(demucs == "auto"),
+            rewrite_endpoint=rewrite_endpoint,
+            job_id=job_id,
+        )
+    except Exception as e:
+        event_bus.error(job_id, str(e))
 
 
 @app.post("/jobs")
 async def create_job(
     video: UploadFile = File(...),
     target_langs: str = "en",
+    source_lang: str = "fr",
     demucs: str = "auto",
     diarize: bool = False,
     glossary: str | None = None,
@@ -48,24 +76,37 @@ async def create_job(
     with open(input_path, "wb") as f:
         shutil.copyfileobj(video.file, f)
 
-    cmd = [
-        "python", "-m", "src.cli.main",
-        "--input", input_path,
-        "--target-langs", target_langs,
-        "--demucs", demucs,
-        "--data-dir", PROJECTS_DIR,
-        "--project-id", job_id,
-    ]
-    if diarize:
-        cmd.append("--diarize")
-    if glossary:
-        cmd.extend(["--glossary", glossary])
-    if rewrite_endpoint:
-        cmd.extend(["--rewrite-endpoint", rewrite_endpoint])
-
-    background_tasks.add_task(_run_pipeline, cmd, job_dir)
+    thread = threading.Thread(
+        target=_run_pipeline_thread,
+        args=(job_id, input_path, target_langs, demucs, diarize, glossary, rewrite_endpoint),
+        daemon=True,
+    )
+    thread.start()
 
     return {"job_id": job_id, "status": "started", "target_langs": target_langs.split(",")}
+
+
+@app.websocket("/ws/jobs/{job_id}")
+async def websocket_job_progress(websocket: WebSocket, job_id: str):
+    """WebSocket for real-time pipeline progress.
+
+    Events: phase_started, phase_completed, segment_done, progress, job_completed, error.
+    """
+    await websocket.accept()
+    queue = event_bus.subscribe(job_id)
+
+    try:
+        while True:
+            event = await queue.get()
+            await websocket.send_json(event)
+            if event.get("type") in ("job_completed", "error"):
+                break
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        event_bus.unsubscribe(job_id, queue)
 
 
 @app.get("/jobs")
@@ -76,8 +117,7 @@ async def list_jobs():
         try:
             with open(manifest_path) as f:
                 m = json.load(f)
-            job_dir = os.path.dirname(manifest_path)
-            job_id = os.path.basename(job_dir)
+            job_id = os.path.basename(os.path.dirname(manifest_path))
             jobs.append({
                 "job_id": job_id,
                 "status": m.get("project", {}).get("status", "unknown"),
@@ -122,7 +162,7 @@ async def get_job(job_id: str):
 
 @app.get("/jobs/{job_id}/download/{lang}")
 async def download(job_id: str, lang: str):
-    """Download the dubbed MP4 for a given language."""
+    """Download the dubbed MP4."""
     mp4_path = os.path.join(PROJECTS_DIR, job_id, "exports", f"output_{lang}.mp4")
     if not os.path.exists(mp4_path):
         raise HTTPException(404, f"Export not found for language '{lang}'")
