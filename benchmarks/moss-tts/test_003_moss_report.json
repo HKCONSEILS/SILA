@@ -1,0 +1,739 @@
+{
+  "test": "test_003_rewrite",
+  "model": "MossTTSLocal-1.7B",
+  "segments": [
+    {
+      "segment_id": "seg_0001",
+      "budget_ms": 9866,
+      "mode_a": {
+        "dur_ms": 9680,
+        "delta_pct": 1.9,
+        "pass": true,
+        "inference_s": 22.74
+      },
+      "mode_b": {
+        "dur_ms": 9920,
+        "delta_pct": 0.5,
+        "pass": true,
+        "inference_s": 23.05
+      },
+      "cosyvoice": {
+        "dur_ms": 10720,
+        "delta_pct": 8.7,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0002",
+      "budget_ms": 10125,
+      "mode_a": {
+        "dur_ms": 6960,
+        "delta_pct": 31.3,
+        "pass": false,
+        "inference_s": 16.24
+      },
+      "mode_b": {
+        "dur_ms": 9840,
+        "delta_pct": 2.8,
+        "pass": true,
+        "inference_s": 24.84
+      },
+      "cosyvoice": {
+        "dur_ms": 8400,
+        "delta_pct": 17.0,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0003",
+      "budget_ms": 10444,
+      "mode_a": {
+        "dur_ms": 3920,
+        "delta_pct": 62.5,
+        "pass": false,
+        "inference_s": 10.52
+      },
+      "mode_b": {
+        "dur_ms": 10560,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 27.06
+      },
+      "cosyvoice": {
+        "dur_ms": 5600,
+        "delta_pct": 46.4,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0004",
+      "budget_ms": 10124,
+      "mode_a": {
+        "dur_ms": 4240,
+        "delta_pct": 58.1,
+        "pass": false,
+        "inference_s": 9.57
+      },
+      "mode_b": {
+        "dur_ms": 10240,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 23.58
+      },
+      "cosyvoice": {
+        "dur_ms": 7440,
+        "delta_pct": 26.5,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0005",
+      "budget_ms": 10043,
+      "mode_a": {
+        "dur_ms": 6880,
+        "delta_pct": 31.5,
+        "pass": false,
+        "inference_s": 18.42
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 1.2,
+        "pass": true,
+        "inference_s": 24.52
+      },
+      "cosyvoice": {
+        "dur_ms": 10080,
+        "delta_pct": 0.4,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0006",
+      "budget_ms": 9883,
+      "mode_a": {
+        "dur_ms": 5360,
+        "delta_pct": 45.8,
+        "pass": false,
+        "inference_s": 12.08
+      },
+      "mode_b": {
+        "dur_ms": 10000,
+        "delta_pct": 1.2,
+        "pass": true,
+        "inference_s": 22.42
+      },
+      "cosyvoice": {
+        "dur_ms": 5760,
+        "delta_pct": 41.7,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0007",
+      "budget_ms": 10123,
+      "mode_a": {
+        "dur_ms": 6000,
+        "delta_pct": 40.7,
+        "pass": false,
+        "inference_s": 13.39
+      },
+      "mode_b": {
+        "dur_ms": 9840,
+        "delta_pct": 2.8,
+        "pass": true,
+        "inference_s": 26.19
+      },
+      "cosyvoice": {
+        "dur_ms": 8320,
+        "delta_pct": 17.8,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0008",
+      "budget_ms": 10443,
+      "mode_a": {
+        "dur_ms": 10960,
+        "delta_pct": 5.0,
+        "pass": true,
+        "inference_s": 26.25
+      },
+      "mode_b": {
+        "dur_ms": 10560,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 24.75
+      },
+      "cosyvoice": {
+        "dur_ms": 13520,
+        "delta_pct": 29.5,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0009",
+      "budget_ms": 8483,
+      "mode_a": {
+        "dur_ms": 7040,
+        "delta_pct": 17.0,
+        "pass": false,
+        "inference_s": 17.85
+      },
+      "mode_b": {
+        "dur_ms": 8560,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 20.49
+      },
+      "cosyvoice": {
+        "dur_ms": 11040,
+        "delta_pct": 30.1,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0010",
+      "budget_ms": 10164,
+      "mode_a": {
+        "dur_ms": 7120,
+        "delta_pct": 29.9,
+        "pass": false,
+        "inference_s": 16.97
+      },
+      "mode_b": {
+        "dur_ms": 10240,
+        "delta_pct": 0.7,
+        "pass": true,
+        "inference_s": 24.23
+      },
+      "cosyvoice": {
+        "dur_ms": 9040,
+        "delta_pct": 11.1,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0011",
+      "budget_ms": 12605,
+      "mode_a": {
+        "dur_ms": 5440,
+        "delta_pct": 56.8,
+        "pass": false,
+        "inference_s": 12.86
+      },
+      "mode_b": {
+        "dur_ms": 12720,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 33.22
+      },
+      "cosyvoice": {
+        "dur_ms": 6720,
+        "delta_pct": 46.7,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0012",
+      "budget_ms": 10224,
+      "mode_a": {
+        "dur_ms": 10880,
+        "delta_pct": 6.4,
+        "pass": true,
+        "inference_s": 28.31
+      },
+      "mode_b": {
+        "dur_ms": 10320,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 24.09
+      },
+      "cosyvoice": {
+        "dur_ms": 11120,
+        "delta_pct": 8.8,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0013",
+      "budget_ms": 10147,
+      "mode_a": {
+        "dur_ms": 4560,
+        "delta_pct": 55.1,
+        "pass": false,
+        "inference_s": 10.8
+      },
+      "mode_b": {
+        "dur_ms": 10240,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 27.57
+      },
+      "cosyvoice": {
+        "dur_ms": 5440,
+        "delta_pct": 46.4,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0014",
+      "budget_ms": 6985,
+      "mode_a": {
+        "dur_ms": 6560,
+        "delta_pct": 6.1,
+        "pass": true,
+        "inference_s": 17.37
+      },
+      "mode_b": {
+        "dur_ms": 7040,
+        "delta_pct": 0.8,
+        "pass": true,
+        "inference_s": 15.88
+      },
+      "cosyvoice": {
+        "dur_ms": 6640,
+        "delta_pct": 4.9,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0015",
+      "budget_ms": 10207,
+      "mode_a": {
+        "dur_ms": 327680,
+        "delta_pct": 3110.3,
+        "pass": false,
+        "inference_s": 774.78
+      },
+      "mode_b": {
+        "dur_ms": 45360,
+        "delta_pct": 344.4,
+        "pass": false,
+        "inference_s": 109.02
+      },
+      "cosyvoice": {
+        "dur_ms": 16079,
+        "delta_pct": 57.5,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0016",
+      "budget_ms": 10247,
+      "mode_a": {
+        "dur_ms": 9520,
+        "delta_pct": 7.1,
+        "pass": true,
+        "inference_s": 21.98
+      },
+      "mode_b": {
+        "dur_ms": 10320,
+        "delta_pct": 0.7,
+        "pass": true,
+        "inference_s": 25.07
+      },
+      "cosyvoice": {
+        "dur_ms": 12400,
+        "delta_pct": 21.0,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0017",
+      "budget_ms": 7646,
+      "mode_a": {
+        "dur_ms": 4400,
+        "delta_pct": 42.5,
+        "pass": false,
+        "inference_s": 13.41
+      },
+      "mode_b": {
+        "dur_ms": 7760,
+        "delta_pct": 1.5,
+        "pass": true,
+        "inference_s": 17.56
+      },
+      "cosyvoice": {
+        "dur_ms": 6960,
+        "delta_pct": 9.0,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0018",
+      "budget_ms": 10069,
+      "mode_a": {
+        "dur_ms": 7840,
+        "delta_pct": 22.1,
+        "pass": false,
+        "inference_s": 17.66
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 22.81
+      },
+      "cosyvoice": {
+        "dur_ms": 10720,
+        "delta_pct": 6.5,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0019",
+      "budget_ms": 10770,
+      "mode_a": {
+        "dur_ms": 6880,
+        "delta_pct": 36.1,
+        "pass": false,
+        "inference_s": 18.29
+      },
+      "mode_b": {
+        "dur_ms": 10880,
+        "delta_pct": 1.0,
+        "pass": true,
+        "inference_s": 29.06
+      },
+      "cosyvoice": {
+        "dur_ms": 8640,
+        "delta_pct": 19.8,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0020",
+      "budget_ms": 10085,
+      "mode_a": {
+        "dur_ms": 8560,
+        "delta_pct": 15.1,
+        "pass": false,
+        "inference_s": 20.24
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 0.7,
+        "pass": true,
+        "inference_s": 24.07
+      },
+      "cosyvoice": {
+        "dur_ms": 11920,
+        "delta_pct": 18.2,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0021",
+      "budget_ms": 10302,
+      "mode_a": {
+        "dur_ms": 6720,
+        "delta_pct": 34.8,
+        "pass": false,
+        "inference_s": 17.77
+      },
+      "mode_b": {
+        "dur_ms": 10400,
+        "delta_pct": 1.0,
+        "pass": true,
+        "inference_s": 23.99
+      },
+      "cosyvoice": {
+        "dur_ms": 7760,
+        "delta_pct": 24.7,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0022",
+      "budget_ms": 6642,
+      "mode_a": {
+        "dur_ms": 3840,
+        "delta_pct": 42.2,
+        "pass": false,
+        "inference_s": 10.56
+      },
+      "mode_b": {
+        "dur_ms": 6720,
+        "delta_pct": 1.2,
+        "pass": true,
+        "inference_s": 15.67
+      },
+      "cosyvoice": {
+        "dur_ms": 4960,
+        "delta_pct": 25.3,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0023",
+      "budget_ms": 10465,
+      "mode_a": {
+        "dur_ms": 1440,
+        "delta_pct": 86.2,
+        "pass": false,
+        "inference_s": 3.27
+      },
+      "mode_b": {
+        "dur_ms": 3680,
+        "delta_pct": 64.8,
+        "pass": false,
+        "inference_s": 8.27
+      },
+      "cosyvoice": {
+        "dur_ms": 1000,
+        "delta_pct": 90.4,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0024",
+      "budget_ms": 10545,
+      "mode_a": {
+        "dur_ms": 5600,
+        "delta_pct": 46.9,
+        "pass": false,
+        "inference_s": 15.14
+      },
+      "mode_b": {
+        "dur_ms": 10640,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 28.69
+      },
+      "cosyvoice": {
+        "dur_ms": 7440,
+        "delta_pct": 29.4,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0025",
+      "budget_ms": 10023,
+      "mode_a": {
+        "dur_ms": 5760,
+        "delta_pct": 42.5,
+        "pass": false,
+        "inference_s": 13.21
+      },
+      "mode_b": {
+        "dur_ms": 10080,
+        "delta_pct": 0.6,
+        "pass": true,
+        "inference_s": 22.73
+      },
+      "cosyvoice": {
+        "dur_ms": 6560,
+        "delta_pct": 34.6,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0026",
+      "budget_ms": 10263,
+      "mode_a": {
+        "dur_ms": 7600,
+        "delta_pct": 25.9,
+        "pass": false,
+        "inference_s": 18.27
+      },
+      "mode_b": {
+        "dur_ms": 10320,
+        "delta_pct": 0.6,
+        "pass": true,
+        "inference_s": 28.05
+      },
+      "cosyvoice": {
+        "dur_ms": 10080,
+        "delta_pct": 1.8,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0027",
+      "budget_ms": 8622,
+      "mode_a": {
+        "dur_ms": 6240,
+        "delta_pct": 27.6,
+        "pass": false,
+        "inference_s": 16.4
+      },
+      "mode_b": {
+        "dur_ms": 8720,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 20.48
+      },
+      "cosyvoice": {
+        "dur_ms": 8160,
+        "delta_pct": 5.4,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0028",
+      "budget_ms": 10208,
+      "mode_a": {
+        "dur_ms": 7760,
+        "delta_pct": 24.0,
+        "pass": false,
+        "inference_s": 17.97
+      },
+      "mode_b": {
+        "dur_ms": 10320,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 25.91
+      },
+      "cosyvoice": {
+        "dur_ms": 10640,
+        "delta_pct": 4.2,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0029",
+      "budget_ms": 10268,
+      "mode_a": {
+        "dur_ms": 6000,
+        "delta_pct": 41.6,
+        "pass": false,
+        "inference_s": 15.04
+      },
+      "mode_b": {
+        "dur_ms": 10320,
+        "delta_pct": 0.5,
+        "pass": true,
+        "inference_s": 24.46
+      },
+      "cosyvoice": {
+        "dur_ms": 5520,
+        "delta_pct": 46.2,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0030",
+      "budget_ms": 10028,
+      "mode_a": {
+        "dur_ms": 5680,
+        "delta_pct": 43.4,
+        "pass": false,
+        "inference_s": 12.62
+      },
+      "mode_b": {
+        "dur_ms": 10080,
+        "delta_pct": 0.5,
+        "pass": true,
+        "inference_s": 23.23
+      },
+      "cosyvoice": {
+        "dur_ms": 8720,
+        "delta_pct": 13.0,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0031",
+      "budget_ms": 10869,
+      "mode_a": {
+        "dur_ms": 9440,
+        "delta_pct": 13.1,
+        "pass": true,
+        "inference_s": 22.83
+      },
+      "mode_b": {
+        "dur_ms": 10960,
+        "delta_pct": 0.8,
+        "pass": true,
+        "inference_s": 25.45
+      },
+      "cosyvoice": {
+        "dur_ms": 10400,
+        "delta_pct": 4.3,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0032",
+      "budget_ms": 10087,
+      "mode_a": {
+        "dur_ms": 7040,
+        "delta_pct": 30.2,
+        "pass": false,
+        "inference_s": 16.61
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 0.7,
+        "pass": true,
+        "inference_s": 25.16
+      },
+      "cosyvoice": {
+        "dur_ms": 9120,
+        "delta_pct": 9.6,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0033",
+      "budget_ms": 13228,
+      "mode_a": {
+        "dur_ms": 5200,
+        "delta_pct": 60.7,
+        "pass": false,
+        "inference_s": 13.9
+      },
+      "mode_b": {
+        "dur_ms": 13280,
+        "delta_pct": 0.4,
+        "pass": true,
+        "inference_s": 32.79
+      },
+      "cosyvoice": {
+        "dur_ms": 8320,
+        "delta_pct": 37.1,
+        "pass": false
+      }
+    },
+    {
+      "segment_id": "seg_0034",
+      "budget_ms": 3282,
+      "mode_a": {
+        "dur_ms": 4240,
+        "delta_pct": 29.2,
+        "pass": false,
+        "inference_s": 9.95
+      },
+      "mode_b": {
+        "dur_ms": 3360,
+        "delta_pct": 2.4,
+        "pass": true,
+        "inference_s": 7.66
+      },
+      "cosyvoice": {
+        "dur_ms": 3120,
+        "delta_pct": 4.9,
+        "pass": true
+      }
+    }
+  ],
+  "summary": {
+    "mode_a": {
+      "qc_pass_pct": 17.6,
+      "mean_delta_pct": 124.4,
+      "mean_inference_s": 38.33,
+      "total_inference_s": 1303.3
+    },
+    "mode_b": {
+      "qc_pass_pct": 94.1,
+      "mean_delta_pct": 13.0,
+      "mean_inference_s": 25.94,
+      "total_inference_s": 882.0
+    },
+    "cosyvoice_ref": {
+      "qc_pass_pct": 41.2
+    },
+    "vram_peak_gb": 6.65,
+    "sample_rate_hz": 24000
+  }
+}

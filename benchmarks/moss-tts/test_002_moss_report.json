@@ -1,0 +1,130 @@
+{
+  "test": "test_002_resume",
+  "model": "MossTTSLocal-1.7B",
+  "segments": [
+    {
+      "segment_id": "seg_0001",
+      "budget_ms": 10189,
+      "mode_a": {
+        "dur_ms": 4080,
+        "delta_pct": 60.0,
+        "pass": false,
+        "inference_s": 13.07
+      },
+      "mode_b": {
+        "dur_ms": 10240,
+        "delta_pct": 0.5,
+        "pass": true,
+        "inference_s": 24.31
+      },
+      "cosyvoice": {
+        "dur_ms": 10189,
+        "delta_pct": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0002",
+      "budget_ms": 10289,
+      "mode_a": {
+        "dur_ms": 5600,
+        "delta_pct": 45.6,
+        "pass": false,
+        "inference_s": 15.16
+      },
+      "mode_b": {
+        "dur_ms": 10400,
+        "delta_pct": 1.1,
+        "pass": true,
+        "inference_s": 25.31
+      },
+      "cosyvoice": {
+        "dur_ms": 9220,
+        "delta_pct": 10.4,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0003",
+      "budget_ms": 10068,
+      "mode_a": {
+        "dur_ms": 6880,
+        "delta_pct": 31.7,
+        "pass": false,
+        "inference_s": 16.41
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 0.9,
+        "pass": true,
+        "inference_s": 24.12
+      },
+      "cosyvoice": {
+        "dur_ms": 10068,
+        "delta_pct": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0004",
+      "budget_ms": 10087,
+      "mode_a": {
+        "dur_ms": 8080,
+        "delta_pct": 19.9,
+        "pass": false,
+        "inference_s": 21.97
+      },
+      "mode_b": {
+        "dur_ms": 10160,
+        "delta_pct": 0.7,
+        "pass": true,
+        "inference_s": 26.62
+      },
+      "cosyvoice": {
+        "dur_ms": 10087,
+        "delta_pct": 0.0,
+        "pass": true
+      }
+    },
+    {
+      "segment_id": "seg_0005",
+      "budget_ms": 5984,
+      "mode_a": {
+        "dur_ms": 4800,
+        "delta_pct": 19.8,
+        "pass": false,
+        "inference_s": 11.16
+      },
+      "mode_b": {
+        "dur_ms": 6080,
+        "delta_pct": 1.6,
+        "pass": true,
+        "inference_s": 18.15
+      },
+      "cosyvoice": {
+        "dur_ms": 5984,
+        "delta_pct": 0.0,
+        "pass": true
+      }
+    }
+  ],
+  "summary": {
+    "mode_a": {
+      "qc_pass_pct": 0.0,
+      "mean_delta_pct": 35.4,
+      "mean_inference_s": 15.55,
+      "total_inference_s": 77.8
+    },
+    "mode_b": {
+      "qc_pass_pct": 100.0,
+      "mean_delta_pct": 1.0,
+      "mean_inference_s": 23.7,
+      "total_inference_s": 118.5
+    },
+    "cosyvoice_ref": {
+      "qc_pass_pct": 100.0
+    },
+    "vram_peak_gb": 6.26,
+    "sample_rate_hz": 24000
+  }
+}
