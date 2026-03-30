@@ -831,6 +831,7 @@ def run_pipeline(
     from_stage: str | None = None,
     tts_engine: str = "cosyvoice",
     demucs_enabled: bool = False,
+    target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
 
@@ -840,7 +841,8 @@ def run_pipeline(
     if data_dir is None:
         data_dir = Path("data/projects")
 
-    target_langs = [target_lang]
+    if not target_langs:
+        target_langs = [target_lang]
     t0 = time.time()
 
     # Phase 0 : Ingest
@@ -886,47 +888,42 @@ def run_pipeline(
     logger.info("=" * 60)
     manifest = run_segmentation(manifest, manifest_path)
 
-    # Phase 6 : Translation
-    logger.info("=" * 60)
-    logger.info("PHASE 6 — TRANSLATION (NLLB-200)")
-    logger.info("=" * 60)
-    t_mt = time.time()
-    manifest = run_translate(manifest, manifest_path, target_lang)
-    logger.info("Translation took %.1fs", time.time() - t_mt)
+    # === Fan-out: Phases 6-11 per target language ===
+    all_langs = target_langs if target_langs else [target_lang]
+    for lang_idx, lang in enumerate(all_langs):
+        logger.info("=" * 60)
+        logger.info("LANGUAGE %d/%d — %s", lang_idx + 1, len(all_langs), lang.upper())
+        logger.info("=" * 60)
 
-    # Phase 7 : Rewrite (LLM constrained)
-    logger.info("=" * 60)
-    logger.info("PHASE 7 — REWRITE (LLM)")
-    logger.info("=" * 60)
-    t_rw = time.time()
-    manifest = run_rewrite(manifest, manifest_path, target_lang)
-    logger.info("Rewrite took %.1fs", time.time() - t_rw)
+        # Phase 6 : Translation
+        logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
+        t_mt = time.time()
+        manifest = run_translate(manifest, manifest_path, lang)
+        logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
 
-    # Phase 8 : TTS
-    logger.info("=" * 60)
-    logger.info("PHASE 8 — TTS (CosyVoice3)")
-    logger.info("=" * 60)
-    t_tts = time.time()
-    manifest = run_tts(manifest, manifest_path, target_lang, tts_engine=tts_engine)
-    logger.info("TTS took %.1fs", time.time() - t_tts)
+        # Phase 7 : Rewrite (LLM constrained)
+        logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
+        t_rw = time.time()
+        manifest = run_rewrite(manifest, manifest_path, lang)
+        logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
 
-    # Phase 9 : Assembly
-    logger.info("=" * 60)
-    logger.info("PHASE 9 — ASSEMBLY")
-    logger.info("=" * 60)
-    manifest = run_assembly(manifest, manifest_path, target_lang)
+        # Phase 8 : TTS
+        logger.info("PHASE 8 — TTS (CosyVoice3) [%s]", lang)
+        t_tts = time.time()
+        manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine)
+        logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
 
-    # Phase 10 : QC
-    logger.info("=" * 60)
-    logger.info("PHASE 10 — QC")
-    logger.info("=" * 60)
-    manifest = run_qc(manifest, manifest_path, target_lang)
+        # Phase 9 : Assembly
+        logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
+        manifest = run_assembly(manifest, manifest_path, lang)
 
-    # Phase 11 : Export
-    logger.info("=" * 60)
-    logger.info("PHASE 11 — EXPORT")
-    logger.info("=" * 60)
-    manifest = run_export(manifest, manifest_path, target_lang)
+        # Phase 10 : QC
+        logger.info("PHASE 10 — QC [%s]", lang)
+        manifest = run_qc(manifest, manifest_path, lang)
+
+        # Phase 11 : Export
+        logger.info("PHASE 11 — EXPORT [%s]", lang)
+        manifest = run_export(manifest, manifest_path, lang)
 
     total_time = time.time() - t0
     manifest["metrics"]["total_processing_time_s"] = round(total_time, 1)

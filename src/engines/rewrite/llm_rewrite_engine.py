@@ -17,18 +17,10 @@ from src.engines.rewrite.interface import RewriterInterface, RewriteResult
 
 logger = logging.getLogger(__name__)
 
+# Fast prompt — bypasses Qwen3.5 thinking mode by being concise
 PROMPT_TEMPLATE = (
-    "You are rewriting text for voice dubbing. A voice actor will read this aloud.\n\n"
-    "Rewrite the following {lang} text so it can be spoken naturally in {min_chars} "
-    "to {max_chars} characters. Preserve the original meaning faithfully — it does "
-    "not need to be word-for-word, but the message must be the same.\n\n"
-    "Rules:\n"
-    "- Write for the EAR, not the eye. Use spoken language, not written language.\n"
-    "- Keep the same register (formal/informal) as the original.\n"
-    "- Prefer short sentences. Avoid subordinate clauses.\n"
-    "- Do not add information that was not in the original.\n"
-    "- Output ONLY the rewritten text, nothing else.\n\n"
-    "Original: {text}\n\nRewritten:"
+    "Shorten for voice dubbing ({min_chars}-{max_chars} chars). Only output the text.\n\n"
+    "{text}\n\nShort:"
 )
 
 LANG_NAMES = {
@@ -121,12 +113,12 @@ class LLMRewriteEngine(RewriterInterface):
 
         try:
             # Attempt 1: low max_tokens (fast, works if model responds directly)
-            rewritten = self._call_llm(prompt, max_tokens=150)
+            rewritten = self._call_llm(prompt, max_tokens=100)
 
             # Attempt 2: higher tokens if first was empty (model was thinking)
             if not rewritten:
                 logger.debug("Rewrite attempt 1 empty, retrying with more tokens")
-                rewritten = self._call_llm(prompt, max_tokens=600)
+                rewritten = self._call_llm(prompt, max_tokens=120)
 
             # Clean up quotes
             if rewritten.startswith('"') and rewritten.endswith('"'):
