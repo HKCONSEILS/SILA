@@ -1,8 +1,8 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.4.2
-**Date** : 2026-03-29
+**Version du document** : 1.4.3
+**Date** : 2026-03-30
 **Statut** : Draft — En cours de validation
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
@@ -1339,7 +1339,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Conséquence** : Benchmark TTS V2 passe de 2 à 3 candidats. Engine stub créé, flag --tts-engine ajouté au CLI.
 
 ### ADR-007 : Philosophie qualité-first — P15, P16 (mars 2026)
-- **Date** : 2026-03-29
+- **Date** : 2026-03-30
 - **Contexte** : 3 tests bout en bout (test_001, test_002, test_003) montrent que forcer le TTS à speed >2.0× produit des collapses (audio dégénéré) ou des résultats inintelligibles. Le QC à 51.9% est atteint en sacrifiant la qualité audio. Un doubleur humain ne parle jamais à 250% de sa vitesse naturelle — il reformule pour que ça tienne.
 - **Décision** : Le TTS a un débit naturel non-négociable (~10 chars/s EN). On adapte le contenu au budget, pas la vitesse de parole. Speed TTS max 1.2× (pas 2.5×). Stretch max 1.10× (pas 1.25×). La réécriture LLM devient le composant central de la cascade de durée (P2 révisé). Tout segment dont la traduction dépasse max_chars doit être réécrit.
 - **Principes ajoutés** : P15 (Intelligibilité d'abord), P16 (Budget en caractères : `max_chars = (budget_ms/1000) × debit × 0.90`).
@@ -1347,7 +1347,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Conséquence** : La réécriture passe de correctif optionnel (5/52 segments réécrits = 9.6%) à composant obligatoire pour tout segment hors budget. Le seuil inclut désormais les REVIEW_REQUIRED en plus des REWRITE_NEEDED.
 
 ### ADR-008 : Résultats post-Demucs — Segmentation et constantes (mars 2026)
-- **Date** : 2026-03-29
+- **Date** : 2026-03-30
 - **Contexte** : 7 commits (494eb47..17d10eb) ont implémenté Demucs, la segmentation phrase-aware, le rewrite adaptatif, et le logging TTS enrichi. Tests sur test_002 (conférence 52s, pas de musique) et test_003 (Zeste de Science 356s, avec musique).
 - **Résultats QC (segments dans budget ±15%)** :
 
@@ -1375,7 +1375,7 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Conséquence** : V1 tagué à 80%/65% QC avec audio réel. L'amélioration vers 85%+ passe par un moteur TTS avec duration control natif (IndexTTS-2 prioritaire en V2). Le speed adaptatif (0.80-1.20) améliore le QC chiffré mais détruit la cohérence perceptive — contraint à [0.95-1.05] pour la V1 finale.
 
 ### ADR-010 : Résultats finaux V1 et leçons apprises (mars 2026)
-- **Date** : 2026-03-29
+- **Date** : 2026-03-30
 - **Contexte** : Pipeline V1 bout-en-bout (Phase 0→11) livré et validé par écoute subjective. Tag v1.0.0.
 - **Résultats QC finaux (segments dans budget ±15%)** :
 
@@ -1393,6 +1393,20 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
   - Le voice profile à 1 clip de 10s est insuffisant. V2 doit implémenter P6 (embedding moyen sur top-10 segments).
   - Le prompt de rewrite doit cibler l'oralité, pas la compression textuelle.
 - **Décision** : V1 tagué. Prochaines priorités V2 : benchmark TTS avec duration control (IndexTTS-2), voice profile multi-segment (P6), rewrite LLM local (Ministral 3 8B), multi-locuteurs, multi-langues.
+
+---
+
+### ADR-011 : Non-determinisme CosyVoice — seed ineffectif (mars 2026)
+- **Date** : 2026-03-30
+- **Contexte** : 3 runs identiques de test_002 (meme code, meme prompt, meme speed=1.0, meme seed=42) produisent des QC de 40% a 80%. Un segment (seg_0001) genere 10189ms dans un run et 5240ms dans un autre — meme texte, memes parametres.
+- **Constat** : le parametre `seed` de CosyVoice 3.0 ne garantit pas la reproductibilite. Le modele LLM-based (flow matching + sampling) introduit du non-determinisme malgre le seed fixe. Ce comportement est probablement lie aux optimisations GPU (flash attention, cuDNN autotuning) qui ne sont pas deterministes par defaut.
+- **Impact** : le QC timing (+-15%) varie de +-40 points entre runs identiques. Les comparaisons A/B avec ecart < 15 points ne sont pas significatives. Seules les tendances fortes (silence vs audio, 20% vs 80%) sont fiables.
+- **Impact sur P11 (Idempotence)** : P11 est partiellement viole pour la phase TTS. L'idempotence reste valide pour toutes les autres phases (ASR, traduction, segmentation, assembly, export). Le TTS est la seule phase non-reproductible.
+- **Mitigations possibles (V2+)** :
+  - `torch.use_deterministic_algorithms(True)` + `CUBLAS_WORKSPACE_CONFIG=:4096:8` — peut ralentir l'inference de 10-20%.
+  - Boucle best-of-3 : generer 3 fois, garder le resultat le plus proche du budget. Cout x3 en GPU-time.
+  - Passer a un moteur TTS deterministe (IndexTTS-2 avec duration control natif, quand disponible).
+- **Decision** : accepter le non-determinisme en V1-V2. Documenter la variance dans les rapports QC (ajouter min/max/mediane sur N runs). Ne pas optimiser le QC sur des ecarts < 15 points.
 
 ---
 

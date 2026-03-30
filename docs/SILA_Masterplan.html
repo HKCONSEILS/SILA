@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SILA — Masterplan v1.4.2</title>
+<title>SILA — Masterplan v1.4.3</title>
 <meta name="description" content="SILA Masterplan — Pipeline IA self-hosted de traduction et doublage vidéo multilingue. 18 sections, 14 principes, 10 briques IA, V1→V3.">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300..800&family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -193,8 +193,8 @@ pre.diagram code{background:none;padding:0;font-size:inherit}
 <div class="md-content">
 <h1 id="masterplan-pipeline-ia-de-traduction-doublage-video-multilingue">MASTERPLAN — Pipeline IA de Traduction &amp; Doublage Vidéo Multilingue</h1>
 <p><strong>Nom de code</strong> : <code>SILA — Seamless International Language Automation</code>
-<strong>Version du document</strong> : 1.4.2
-<strong>Date</strong> : 2026-03-29
+<strong>Version du document</strong> : 1.4.3
+<strong>Date</strong> : 2026-03-30
 <strong>Statut</strong> : Draft — En cours de validation
 <strong>Auteur</strong> : Comité d'architecture (4 experts)
 <strong>Licence projet</strong> : À définir (self-hosted, usage interne ou commercial)</p>
@@ -2470,7 +2470,7 @@ data/projects/{project_id}/qc_report.json
 </ul>
 <h3 id="adr-007-philosophie-qualite-first-p15-p16-mars-2026">ADR-007 : Philosophie qualité-first — P15, P16 (mars 2026)</h3>
 <ul>
-<li><strong>Date</strong> : 2026-03-29</li>
+<li><strong>Date</strong> : 2026-03-30</li>
 <li><strong>Contexte</strong> : 3 tests bout en bout (test_001, test_002, test_003) montrent que forcer le TTS à speed &gt;2.0× produit des collapses (audio dégénéré) ou des résultats inintelligibles. Le QC à 51.9% est atteint en sacrifiant la qualité audio. Un doubleur humain ne parle jamais à 250% de sa vitesse naturelle — il reformule pour que ça tienne.</li>
 <li><strong>Décision</strong> : Le TTS a un débit naturel non-négociable (~10 chars/s EN). On adapte le contenu au budget, pas la vitesse de parole. Speed TTS max 1.2× (pas 2.5×). Stretch max 1.10× (pas 1.25×). La réécriture LLM devient le composant central de la cascade de durée (P2 révisé). Tout segment dont la traduction dépasse max_chars doit être réécrit.</li>
 <li><strong>Principes ajoutés</strong> : P15 (Intelligibilité d'abord), P16 (Budget en caractères : <code>max_chars = (budget_ms/1000) × debit × 0.90</code>).</li>
@@ -2479,7 +2479,7 @@ data/projects/{project_id}/qc_report.json
 </ul>
 <h3 id="adr-008-resultats-post-demucs-segmentation-et-constantes-mars-2026">ADR-008 : Résultats post-Demucs — Segmentation et constantes (mars 2026)</h3>
 <ul>
-<li><strong>Date</strong> : 2026-03-29</li>
+<li><strong>Date</strong> : 2026-03-30</li>
 <li><strong>Contexte</strong> : 7 commits (494eb47..17d10eb) ont implémenté Demucs, la segmentation phrase-aware, le rewrite adaptatif, et le logging TTS enrichi. Tests sur test_002 (conférence 52s, pas de musique) et test_003 (Zeste de Science 356s, avec musique).</li>
 <li><strong>Résultats QC (segments dans budget ±15%)</strong> :</li>
 </ul>
@@ -2541,7 +2541,7 @@ data/projects/{project_id}/qc_report.json
 </ul>
 <h3 id="adr-010-resultats-finaux-v1-et-lecons-apprises-mars-2026">ADR-010 : Résultats finaux V1 et leçons apprises (mars 2026)</h3>
 <ul>
-<li><strong>Date</strong> : 2026-03-29</li>
+<li><strong>Date</strong> : 2026-03-30</li>
 <li><strong>Contexte</strong> : Pipeline V1 bout-en-bout (Phase 0→11) livré et validé par écoute subjective. Tag v1.0.0.</li>
 <li><strong>Résultats QC finaux (segments dans budget ±15%)</strong> :</li>
 </ul>
@@ -2576,6 +2576,20 @@ data/projects/{project_id}/qc_report.json
 <li>Le voice profile à 1 clip de 10s est insuffisant. V2 doit implémenter P6 (embedding moyen sur top-10 segments).</li>
 <li>Le prompt de rewrite doit cibler l'oralité, pas la compression textuelle.</li>
 <li><strong>Décision</strong> : V1 tagué. Prochaines priorités V2 : benchmark TTS avec duration control (IndexTTS-2), voice profile multi-segment (P6), rewrite LLM local (Ministral 3 8B), multi-locuteurs, multi-langues.</li>
+</ul>
+<hr />
+<h3 id="adr-011-non-determinisme-cosyvoice-seed-ineffectif-mars-2026">ADR-011 : Non-determinisme CosyVoice — seed ineffectif (mars 2026)</h3>
+<ul>
+<li><strong>Date</strong> : 2026-03-30</li>
+<li><strong>Contexte</strong> : 3 runs identiques de test_002 (meme code, meme prompt, meme speed=1.0, meme seed=42) produisent des QC de 40% a 80%. Un segment (seg_0001) genere 10189ms dans un run et 5240ms dans un autre — meme texte, memes parametres.</li>
+<li><strong>Constat</strong> : le parametre <code>seed</code> de CosyVoice 3.0 ne garantit pas la reproductibilite. Le modele LLM-based (flow matching + sampling) introduit du non-determinisme malgre le seed fixe. Ce comportement est probablement lie aux optimisations GPU (flash attention, cuDNN autotuning) qui ne sont pas deterministes par defaut.</li>
+<li><strong>Impact</strong> : le QC timing (+-15%) varie de +-40 points entre runs identiques. Les comparaisons A/B avec ecart &lt; 15 points ne sont pas significatives. Seules les tendances fortes (silence vs audio, 20% vs 80%) sont fiables.</li>
+<li><strong>Impact sur P11 (Idempotence)</strong> : P11 est partiellement viole pour la phase TTS. L'idempotence reste valide pour toutes les autres phases (ASR, traduction, segmentation, assembly, export). Le TTS est la seule phase non-reproductible.</li>
+<li><strong>Mitigations possibles (V2+)</strong> :</li>
+<li><code>torch.use_deterministic_algorithms(True)</code> + <code>CUBLAS_WORKSPACE_CONFIG=:4096:8</code> — peut ralentir l'inference de 10-20%.</li>
+<li>Boucle best-of-3 : generer 3 fois, garder le resultat le plus proche du budget. Cout x3 en GPU-time.</li>
+<li>Passer a un moteur TTS deterministe (IndexTTS-2 avec duration control natif, quand disponible).</li>
+<li><strong>Decision</strong> : accepter le non-determinisme en V1-V2. Documenter la variance dans les rapports QC (ajouter min/max/mediane sur N runs). Ne pas optimiser le QC sur des ecarts &lt; 15 points.</li>
 </ul>
 <hr />
 <p><em>Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.</em></p>
