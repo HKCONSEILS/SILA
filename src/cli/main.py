@@ -73,8 +73,15 @@ def _setup_logging(verbose: bool) -> None:
 )
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
 @click.option("--phrase-aware", is_flag=True, default=False, help="Enable phrase-aware segmentation (off by default).")
-@click.option("--demucs", is_flag=True, default=False, help="Enable Demucs vocal separation (for videos with background music).")
+@click.option("--demucs", type=click.Choice(["on", "off", "auto"]), default="off",
+    help="Demucs vocal separation: on, off (default), auto (SNR detection).")
 @click.option("--diarize", is_flag=True, default=False, help="Enable multi-speaker diarization via pyannote (requires HF token).")
+@click.option("--rewrite-endpoint", default=None, type=str,
+    help="Endpoint API du LLM de rewrite (défaut: Qwen3.5 sur LXC 225). Ex: http://localhost:8081")
+@click.option("--glossary", default=None, type=click.Path(exists=True, path_type=Path),
+    help="Path to project glossary JSON file for terminology consistency.")
+@click.option("--asr-engine", default="whisperx", type=click.Choice(["whisperx", "qwen3", "voxtral"]),
+    help="ASR engine (default: whisperx). qwen3 and voxtral are stubs.")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -95,6 +102,9 @@ def cli(
     phrase_aware: bool,
     demucs: bool,
     diarize: bool,
+    rewrite_endpoint: str | None,
+    glossary: Path | None,
+    asr_engine: str,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -119,10 +129,14 @@ def cli(
             os.environ["SILA_PHRASE_AWARE"] = "1"
             console.print("  Phrase-aware: ENABLED")
         console.print(f"  TTS engine: {tts_engine}")
-        if demucs:
-            console.print("  Demucs: ENABLED")
+        if demucs != "off":
+            console.print(f"  Demucs: {demucs.upper()}")
         if diarize:
             console.print("  Diarize: ENABLED")
+        if rewrite_endpoint:
+            console.print(f"  Rewrite endpoint: {rewrite_endpoint}")
+        if glossary:
+            console.print(f"  Glossary: {glossary}")
         manifest = run_pipeline(
             video_path=input_video,
             source_lang=source_lang,
@@ -132,8 +146,12 @@ def cli(
             project_id=project_id,
             from_stage=from_stage,
             tts_engine=tts_engine,
-            demucs_enabled=demucs,
+            demucs_enabled=(demucs == "on"),
+            demucs_auto=(demucs == "auto"),
             diarize_enabled=diarize,
+            rewrite_endpoint=rewrite_endpoint,
+            glossary_path=str(glossary) if glossary else None,
+            asr_engine=asr_engine,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")

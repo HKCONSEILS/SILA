@@ -169,12 +169,12 @@ def run_demucs(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False) -> dict:
-    """Phase 3 : ASR via WhisperX. V2: optional diarization."""
-    from src.engines.asr.whisperx_engine import WhisperXEngine
+def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False, asr_engine: str = "whisperx") -> dict:
+    """Phase 3 : ASR — decomposed into 3.1 Transcribe + 3.2 Align + 3.3 Diarize.
 
+    V2: modular pipeline with interchangeable engines (P12).
+    """
     project_dir = manifest_path.parent
-    # Use vocals.wav (Demucs output) if available, else original audio
     vocals_path = project_dir / "extracted" / "vocals.wav"
     audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
     transcript_path = project_dir / "asr" / "transcript.json"
@@ -191,29 +191,74 @@ def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False) -> dict:
     update_stage(manifest, "asr", StageStatus.RUNNING)
     save_manifest(manifest, manifest_path)
 
+    source_lang = manifest["project"]["source_lang"]
+
     try:
-        engine = WhisperXEngine()
-        source_lang = manifest["project"]["source_lang"]
-        result = engine.transcribe(audio_path, language=source_lang, diarize=diarize)
-        engine.unload()
+        # Phase 3.1: Transcription
+        logger.info("Phase 3.1 — ASR Transcription (%s)", asr_engine)
+        if asr_engine == "whisperx":
+            from src.engines.asr.whisperx_asr import WhisperXASR
+            asr = WhisperXASR()
+        elif asr_engine == "qwen3":
+            from src.engines.asr.qwen3_asr import Qwen3ASR
+            asr = Qwen3ASR()
+        elif asr_engine == "voxtral":
+            from src.engines.asr.voxtral_asr import VoxtralASR
+            asr = VoxtralASR()
+        else:
+            raise ValueError(f"Unknown ASR engine: {asr_engine}")
+
+        raw_transcript = asr.transcribe(audio_path, language=source_lang)
+        asr.unload()
+
+        # Phase 3.2: Alignment
+        logger.info("Phase 3.2 — Word-level Alignment")
+        from src.engines.asr.whisperx_align import WhisperXAlign
+        aligner = WhisperXAlign()
+        aligned = aligner.align(raw_transcript, audio_path)
+
+        # Phase 3.3: Diarization (optional)
+        if diarize:
+            logger.info("Phase 3.3 — Diarization")
+            from src.engines.asr.whisperx_diarize import WhisperXDiarize
+            diarizer = WhisperXDiarize()
+            diarize_result = diarizer.diarize(audio_path, aligned=aligned)
+            # aligned.segments is updated in-place by diarizer
+
+        # Convert to word list
+        words = []
+        for seg in aligned.segments:
+            seg_speaker = seg.get("speaker", "spk_0")
+            for w in seg.get("words", []):
+                if "start" not in w or "end" not in w:
+                    continue
+                words.append({
+                    "text": w["word"].strip(),
+                    "start_ms": int(w["start"] * 1000),
+                    "end_ms": int(w["end"] * 1000),
+                    "confidence": w.get("score", 0.0),
+                    "speaker": w.get("speaker", seg_speaker),
+                })
+
+        n_speakers = len(set(w.get("speaker", "spk_0") for w in words))
+        logger.info("Phase 3 done: %d words, %d speaker(s)", len(words), n_speakers)
 
         transcript_data = {
-            "language": result.language,
-            "words": result.words,
-            "word_count": len(result.words),
+            "language": source_lang,
+            "words": words,
+            "word_count": len(words),
         }
         with open(transcript_path, "w") as f:
             json.dump(transcript_data, f, indent=2, ensure_ascii=False)
 
-        manifest["_words"] = result.words
-        update_stage(manifest, "asr", StageStatus.COMPLETED, segments_count=len(result.words))
+        manifest["_words"] = words
+        update_stage(manifest, "asr", StageStatus.COMPLETED, segments_count=len(words))
     except Exception as exc:
         update_stage(manifest, "asr", StageStatus.FAILED, error=str(exc))
         save_manifest(manifest, manifest_path)
         raise
 
     save_manifest(manifest, manifest_path)
-    logger.info("Phase 3 (ASR) done: %d words", len(result.words))
     return manifest
 
 
@@ -270,8 +315,8 @@ def run_segmentation(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 6 : Translate segments via NLLB-200."""
+def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None) -> dict:
+    """Phase 6 : Translate segments via NLLB-200. V2: optional glossary post-processing."""
     from src.engines.mt.nllb_engine import NLLBEngine
 
     project_dir = manifest_path.parent
@@ -301,10 +346,18 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
         for i, seg in enumerate(segments):
             text = seg["source_text"]
             result = engine.translate(text, source_lang, target_lang)
+            translated = result.text
+            glossary_hits = []
+            if glossary:
+                from src.core.glossary import apply_glossary_post_translation
+                translated, glossary_hits = apply_glossary_post_translation(
+                    translated, text, glossary, target_lang)
+
             translations.append({
                 "segment_id": seg["segment_id"],
                 "source_text": text,
-                "translated_text": result.text,
+                "translated_text": translated,
+                "glossary_hits": glossary_hits if glossary_hits else None,
                 "start_ms": seg["start_ms"],
                 "end_ms": seg["end_ms"],
                 "timing_budget_ms": seg["timing_budget_ms"],
@@ -336,7 +389,7 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
 # =========================================================================
 
 
-def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
+def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_endpoint: str | None = None, glossary: dict | None = None) -> dict:
     """Phase 7 : Reecriture contrainte LLM — qualite-first.
 
     Reecrit TOUS les segments dont le texte depasse max_chars (REWRITE_NEEDED
@@ -362,7 +415,11 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
     save_manifest(manifest, manifest_path)
 
     try:
-        engine = LLMRewriteEngine()
+        engine_kwargs = {}
+        if rewrite_endpoint:
+            engine_kwargs["api_base"] = rewrite_endpoint
+            logger.info("Using custom rewrite endpoint: %s", rewrite_endpoint)
+        engine = LLMRewriteEngine(**engine_kwargs)
 
         for i, trans in enumerate(translations):
             seg_id = trans["segment_id"]
@@ -392,11 +449,18 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
             logger.info("%s [%d/%d] %s: %d chars -> max %d chars (budget %dms)",
                         tag, i + 1, len(translations), seg_id, len(text), max_chars, budget_ms)
 
+            # Build glossary context for rewrite prompt
+            glossary_context = ""
+            if glossary:
+                from src.core.glossary import build_glossary_prompt_section
+                glossary_context = build_glossary_prompt_section(glossary, target_lang, text)
+
             result = engine.rewrite(
                 text=text,
                 target_lang=target_lang,
                 max_chars=max_chars,
                 timing_budget_ms=budget_ms,
+                context=glossary_context,
             )
 
             # Guard: reject empty or absurdly short rewrites (< 20% of original)
@@ -922,7 +986,11 @@ def run_pipeline(
     from_stage: str | None = None,
     tts_engine: str = "cosyvoice",
     demucs_enabled: bool = False,
+    demucs_auto: bool = False,
     diarize_enabled: bool = False,
+    rewrite_endpoint: str | None = None,
+    glossary_path: str | None = None,
+    asr_engine: str = "whisperx",
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -956,6 +1024,20 @@ def run_pipeline(
     manifest = run_extract(manifest, manifest_path)
 
     # Phase 2 : Demucs (optional, off by default — ADR-008)
+    # V2: auto-detection via SNR analysis
+    if demucs_auto:
+        from src.media.snr_detect import detect_background_audio
+        audio_48k = manifest_path.parent / "extracted" / "audio_48k.wav"
+        logger.info("=" * 60)
+        logger.info("PHASE 2a — SNR DETECTION (auto Demucs)")
+        logger.info("=" * 60)
+        snr_result = detect_background_audio(str(audio_48k))
+        manifest["snr_detection"] = snr_result
+        save_manifest(manifest, manifest_path)
+        demucs_enabled = snr_result["has_background"]
+        logger.info("SNR auto-detection: ratio=%.4f -> %s (demucs=%s)",
+                    snr_result["background_ratio"], snr_result["recommendation"], demucs_enabled)
+
     if demucs_enabled:
         logger.info("=" * 60)
         logger.info("PHASE 2 — DEMUCS (vocal separation)")
@@ -971,7 +1053,7 @@ def run_pipeline(
     logger.info("PHASE 3 — ASR (WhisperX)")
     logger.info("=" * 60)
     t_asr = time.time()
-    manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled)
+    manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled, asr_engine=asr_engine)
     logger.info("ASR took %.1fs", time.time() - t_asr)
 
     # Phase 4 : Segmentation
@@ -981,6 +1063,12 @@ def run_pipeline(
     manifest = run_segmentation(manifest, manifest_path)
 
     # === Fan-out: Phases 6-11 per target language ===
+    # Load glossary if provided
+    _glossary = None
+    if glossary_path:
+        from src.core.glossary import load_glossary
+        _glossary = load_glossary(glossary_path)
+
     all_langs = target_langs if target_langs else [target_lang]
     for lang_idx, lang in enumerate(all_langs):
         logger.info("=" * 60)
@@ -990,13 +1078,13 @@ def run_pipeline(
         # Phase 6 : Translation
         logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
         t_mt = time.time()
-        manifest = run_translate(manifest, manifest_path, lang)
+        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
 
         # Phase 7 : Rewrite (LLM constrained)
         logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
         t_rw = time.time()
-        manifest = run_rewrite(manifest, manifest_path, lang)
+        manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint, glossary=_glossary)
         logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
 
         # Phase 8 : TTS
