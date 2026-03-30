@@ -133,6 +133,11 @@ def assemble_segments(
         timeline[start_sample:end_sample] += chunk
         voice_mask[start_sample:end_sample] = True
 
+    # Save voice-only timeline (before background mix) for multi-track export
+    voice_only_path = output_path.parent / output_path.name.replace("_raw.wav", "_voice_only.wav")
+    sf.write(str(voice_only_path), timeline.copy(), sample_rate)
+    logger.info("Voice-only saved: %s", voice_only_path)
+
     # Mix with background audio if provided (V2: Demucs stems)
     if background_audio_path is not None and Path(background_audio_path).exists():
         logger.info("Mixing TTS with background audio: %s", background_audio_path)
@@ -159,6 +164,11 @@ def assemble_segments(
             sample_rate=sample_rate,
         )
         logger.info("Ducking applied: %.1f dB attenuation during voice segments", duck_db)
+
+        # Save ducked background for multi-track export
+        bg_only_path = output_path.parent / output_path.name.replace("_raw.wav", "_background.wav")
+        sf.write(str(bg_only_path), bg_ducked, sample_rate)
+        logger.info("Background-only saved: %s", bg_only_path)
 
         # Mix: TTS timeline + ducked background
         timeline = timeline + bg_ducked

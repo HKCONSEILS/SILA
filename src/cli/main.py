@@ -84,6 +84,8 @@ def _setup_logging(verbose: bool) -> None:
     help="ASR engine (default: whisperx). qwen3 and voxtral are stubs.")
 @click.option("--force-reprocess", is_flag=True, default=False,
     help="Ignore cache and reprocess all segments (debug).")
+@click.option("--multitrack", is_flag=True, default=False,
+    help="Export separate audio tracks (voice, background, mix).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -108,6 +110,7 @@ def cli(
     glossary: Path | None,
     asr_engine: str,
     force_reprocess: bool,
+    multitrack: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -156,6 +159,7 @@ def cli(
             glossary_path=str(glossary) if glossary else None,
             asr_engine=asr_engine,
             force_reprocess=force_reprocess,
+            multitrack=multitrack,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")

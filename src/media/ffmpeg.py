@@ -228,3 +228,46 @@ def remux(
     )
     logger.info("Remuxed: %s (lang=%s, faststart)", output_path, target_lang)
     return output_path
+
+
+def remux_multitrack(
+    video_path: Path,
+    mix_audio: Path,
+    voice_audio: Path,
+    background_audio: Path | None,
+    output_path: Path,
+    target_lang: str = "en",
+) -> Path:
+    """Remux video + 3 audio tracks (mix, voice, background) into MP4.
+
+    Creates a multi-track MP4 for professional post-production.
+    Track 0: video (copy), Track 1: mix, Track 2: voice, Track 3: background.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "-i", str(video_path),
+        "-i", str(mix_audio),
+        "-i", str(voice_audio),
+    ]
+    if background_audio and background_audio.exists():
+        cmd.extend(["-i", str(background_audio)])
+        n_audio = 3
+    else:
+        n_audio = 2
+
+    cmd.extend([
+        "-c:v", "copy",
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-map", "0:v:0",
+        "-map", "1:a:0", "-metadata:s:a:0", f"language={target_lang}", "-metadata:s:a:0", "title=Mix",
+        "-map", "2:a:0", "-metadata:s:a:1", f"language={target_lang}", "-metadata:s:a:1", "title=Voice",
+    ])
+    if n_audio == 3:
+        cmd.extend([
+            "-map", "3:a:0", "-metadata:s:a:2", f"language={target_lang}", "-metadata:s:a:2", "title=Background",
+        ])
+    cmd.extend(["-movflags", "+faststart", "-shortest", str(output_path)])
+
+    _run_ffmpeg(cmd, description="remux_multitrack")
+    logger.info("Multitrack remuxed: %s (%d audio tracks, lang=%s)", output_path, n_audio, target_lang)
+    return output_path
