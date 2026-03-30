@@ -336,7 +336,7 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
 # =========================================================================
 
 
-def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
+def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_endpoint: str | None = None) -> dict:
     """Phase 7 : Reecriture contrainte LLM — qualite-first.
 
     Reecrit TOUS les segments dont le texte depasse max_chars (REWRITE_NEEDED
@@ -362,7 +362,11 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
     save_manifest(manifest, manifest_path)
 
     try:
-        engine = LLMRewriteEngine()
+        engine_kwargs = {}
+        if rewrite_endpoint:
+            engine_kwargs["api_base"] = rewrite_endpoint
+            logger.info("Using custom rewrite endpoint: %s", rewrite_endpoint)
+        engine = LLMRewriteEngine(**engine_kwargs)
 
         for i, trans in enumerate(translations):
             seg_id = trans["segment_id"]
@@ -923,6 +927,7 @@ def run_pipeline(
     tts_engine: str = "cosyvoice",
     demucs_enabled: bool = False,
     diarize_enabled: bool = False,
+    rewrite_endpoint: str | None = None,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -996,7 +1001,7 @@ def run_pipeline(
         # Phase 7 : Rewrite (LLM constrained)
         logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
         t_rw = time.time()
-        manifest = run_rewrite(manifest, manifest_path, lang)
+        manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint)
         logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
 
         # Phase 8 : TTS
