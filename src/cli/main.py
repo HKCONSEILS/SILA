@@ -78,6 +78,8 @@ def _setup_logging(verbose: bool) -> None:
 @click.option("--diarize", is_flag=True, default=False, help="Enable multi-speaker diarization via pyannote (requires HF token).")
 @click.option("--rewrite-endpoint", default=None, type=str,
     help="Endpoint API du LLM de rewrite (défaut: Qwen3.5 sur LXC 225). Ex: http://localhost:8081")
+@click.option("--glossary", default=None, type=click.Path(exists=True, path_type=Path),
+    help="Path to project glossary JSON file for terminology consistency.")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -99,6 +101,7 @@ def cli(
     demucs: bool,
     diarize: bool,
     rewrite_endpoint: str | None,
+    glossary: Path | None,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -129,6 +132,8 @@ def cli(
             console.print("  Diarize: ENABLED")
         if rewrite_endpoint:
             console.print(f"  Rewrite endpoint: {rewrite_endpoint}")
+        if glossary:
+            console.print(f"  Glossary: {glossary}")
         manifest = run_pipeline(
             video_path=input_video,
             source_lang=source_lang,
@@ -142,6 +147,7 @@ def cli(
             demucs_auto=(demucs == "auto"),
             diarize_enabled=diarize,
             rewrite_endpoint=rewrite_endpoint,
+            glossary_path=str(glossary) if glossary else None,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")

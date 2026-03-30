@@ -100,7 +100,10 @@ class LLMRewriteEngine(RewriterInterface):
         """
         lang_name = LANG_NAMES.get(target_lang, target_lang)
         min_chars = int(max_chars * 0.80)
-        prompt = PROMPT_TEMPLATE.format(
+        prompt = ""
+        if context:
+            prompt = context
+        prompt += PROMPT_TEMPLATE.format(
             lang=lang_name,
             min_chars=min_chars,
             max_chars=max_chars,

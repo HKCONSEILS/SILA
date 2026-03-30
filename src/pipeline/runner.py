@@ -270,8 +270,8 @@ def run_segmentation(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 6 : Translate segments via NLLB-200."""
+def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None) -> dict:
+    """Phase 6 : Translate segments via NLLB-200. V2: optional glossary post-processing."""
     from src.engines.mt.nllb_engine import NLLBEngine
 
     project_dir = manifest_path.parent
@@ -301,10 +301,18 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
         for i, seg in enumerate(segments):
             text = seg["source_text"]
             result = engine.translate(text, source_lang, target_lang)
+            translated = result.text
+            glossary_hits = []
+            if glossary:
+                from src.core.glossary import apply_glossary_post_translation
+                translated, glossary_hits = apply_glossary_post_translation(
+                    translated, text, glossary, target_lang)
+
             translations.append({
                 "segment_id": seg["segment_id"],
                 "source_text": text,
-                "translated_text": result.text,
+                "translated_text": translated,
+                "glossary_hits": glossary_hits if glossary_hits else None,
                 "start_ms": seg["start_ms"],
                 "end_ms": seg["end_ms"],
                 "timing_budget_ms": seg["timing_budget_ms"],
@@ -336,7 +344,7 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str) -> dict
 # =========================================================================
 
 
-def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_endpoint: str | None = None) -> dict:
+def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_endpoint: str | None = None, glossary: dict | None = None) -> dict:
     """Phase 7 : Reecriture contrainte LLM — qualite-first.
 
     Reecrit TOUS les segments dont le texte depasse max_chars (REWRITE_NEEDED
@@ -396,11 +404,18 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_e
             logger.info("%s [%d/%d] %s: %d chars -> max %d chars (budget %dms)",
                         tag, i + 1, len(translations), seg_id, len(text), max_chars, budget_ms)
 
+            # Build glossary context for rewrite prompt
+            glossary_context = ""
+            if glossary:
+                from src.core.glossary import build_glossary_prompt_section
+                glossary_context = build_glossary_prompt_section(glossary, target_lang, text)
+
             result = engine.rewrite(
                 text=text,
                 target_lang=target_lang,
                 max_chars=max_chars,
                 timing_budget_ms=budget_ms,
+                context=glossary_context,
             )
 
             # Guard: reject empty or absurdly short rewrites (< 20% of original)
@@ -929,6 +944,7 @@ def run_pipeline(
     demucs_auto: bool = False,
     diarize_enabled: bool = False,
     rewrite_endpoint: str | None = None,
+    glossary_path: str | None = None,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -1001,6 +1017,12 @@ def run_pipeline(
     manifest = run_segmentation(manifest, manifest_path)
 
     # === Fan-out: Phases 6-11 per target language ===
+    # Load glossary if provided
+    _glossary = None
+    if glossary_path:
+        from src.core.glossary import load_glossary
+        _glossary = load_glossary(glossary_path)
+
     all_langs = target_langs if target_langs else [target_lang]
     for lang_idx, lang in enumerate(all_langs):
         logger.info("=" * 60)
@@ -1010,13 +1032,13 @@ def run_pipeline(
         # Phase 6 : Translation
         logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
         t_mt = time.time()
-        manifest = run_translate(manifest, manifest_path, lang)
+        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
 
         # Phase 7 : Rewrite (LLM constrained)
         logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
         t_rw = time.time()
-        manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint)
+        manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint, glossary=_glossary)
         logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
 
         # Phase 8 : TTS

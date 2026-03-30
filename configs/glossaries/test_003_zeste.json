@@ -1,0 +1,36 @@
+{
+    "project": "test_003_zeste_de_science",
+    "description": "Glossaire pour Zeste de Science (CNRS)",
+    "entries": [
+        {
+            "source": "Zeste de Science",
+            "translations": {"en": "Zeste de Science", "es": "Zeste de Science"},
+            "type": "proper_noun",
+            "note": "Nom de l'émission CNRS, ne pas traduire"
+        },
+        {
+            "source": "CNRS",
+            "translations": {"en": "CNRS", "es": "CNRS"},
+            "type": "acronym",
+            "note": "Centre National de la Recherche Scientifique"
+        },
+        {
+            "source": "Zesteux",
+            "translations": {"en": "Zesteux", "es": "Zesteux"},
+            "type": "proper_noun",
+            "note": "Surnom des fans de Zeste de Science, ne pas traduire"
+        },
+        {
+            "source": "Zesteurs",
+            "translations": {"en": "Zesteurs", "es": "Zesteurs"},
+            "type": "proper_noun",
+            "note": "Surnom des fans de Zeste de Science, ne pas traduire"
+        },
+        {
+            "source": "embryonnaires",
+            "translations": {"en": "embryonic", "es": "embrionarias"},
+            "type": "scientific",
+            "note": "Terme scientifique"
+        }
+    ]
+}
