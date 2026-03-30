@@ -803,6 +803,13 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             }
             tts_outputs.append(_tts_entry)
 
+            # Record TTS segment metric
+            try:
+                _metrics.record("tts_segment", "done", segment_id=seg_id,
+                               duration_ms=tts_result_ms, budget_ms=budget_ms)
+            except Exception:
+                pass
+
             # Incremental save: write partial TTS manifest every 5 segments
             if (i + 1) % 5 == 0 or (i + 1) == len(translations):
                 with open(tts_manifest_path, "w") as f:
@@ -962,8 +969,8 @@ def run_qc(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
 # =========================================================================
 
 
-def run_export(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 11 : Export — SRT + remux MP4."""
+def run_export(manifest: dict, manifest_path: Path, target_lang: str, multitrack: bool = False) -> dict:
+    """Phase 11 : Export — SRT + remux MP4. V3: optional multi-track export."""
     project_dir = manifest_path.parent
     stage_key = f"export_{target_lang}"
     exports_dir = project_dir / "exports"
@@ -989,6 +996,33 @@ def run_export(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         output_video = exports_dir / f"output_{target_lang}.mp4"
 
         remux(source_video, mix_audio, output_video, target_lang=target_lang)
+
+        # V3: Multi-track export (separate voice + background stems)
+        if multitrack:
+            from src.media.ffmpeg import remux_multitrack
+            mix_dir = project_dir / "mix"
+            voice_only = mix_dir / f"mix_{target_lang}_voice_only.wav"
+            background = mix_dir / f"mix_{target_lang}_background.wav"
+            if voice_only.exists():
+                # Also export individual WAV stems
+                import shutil
+                shutil.copy2(str(voice_only), str(exports_dir / f"{target_lang}_voice.wav"))
+                if background.exists():
+                    shutil.copy2(str(background), str(exports_dir / f"{target_lang}_background.wav"))
+                # Multi-track MP4
+                mt_video = exports_dir / f"output_{target_lang}_multitrack.mp4"
+                remux_multitrack(
+                    source_video, mix_audio, voice_only,
+                    background if background.exists() else None,
+                    mt_video, target_lang=target_lang,
+                )
+                manifest["outputs"][target_lang]["multitrack_video_uri"] = str(mt_video)
+                manifest["outputs"][target_lang]["voice_wav_uri"] = str(exports_dir / f"{target_lang}_voice.wav")
+                if background.exists():
+                    manifest["outputs"][target_lang]["background_wav_uri"] = str(exports_dir / f"{target_lang}_background.wav")
+                logger.info("Multi-track export: %s", mt_video)
+            else:
+                logger.warning("Voice-only WAV not found — skipping multitrack export")
 
         # Update outputs in manifest
         manifest["outputs"][target_lang] = {
@@ -1031,6 +1065,7 @@ def run_pipeline(
     glossary_path: str | None = None,
     asr_engine: str = "whisperx",
     force_reprocess: bool = False,
+    multitrack: bool = False,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -1044,6 +1079,8 @@ def run_pipeline(
     if not target_langs:
         target_langs = [target_lang]
     t0 = time.time()
+    from src.monitoring.metrics import PipelineMetrics
+    _metrics = type('NullMetrics', (), {'record': lambda *a, **k: None, 'summary': lambda s: {}})()
 
     # Phase 0 : Ingest
     logger.info("=" * 60)
@@ -1056,6 +1093,8 @@ def run_pipeline(
         data_dir=data_dir,
         project_id=project_id,
     )
+    _metrics = PipelineMetrics(manifest_path.parent)
+    _metrics.record("pipeline", "start")
 
     # Phase 1 : Extract
     logger.info("=" * 60)
@@ -1095,6 +1134,7 @@ def run_pipeline(
     t_asr = time.time()
     manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled, asr_engine=asr_engine)
     logger.info("ASR took %.1fs", time.time() - t_asr)
+    _metrics.record("asr", "end", duration_s=round(time.time() - t_asr, 1))
 
     # Phase 4 : Segmentation
     logger.info("=" * 60)
@@ -1120,18 +1160,21 @@ def run_pipeline(
         t_mt = time.time()
         manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary, force_reprocess=force_reprocess)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
+        _metrics.record("translate", "end", lang=lang, duration_s=round(time.time() - t_mt, 1))
 
         # Phase 7 : Rewrite (LLM constrained)
         logger.info("PHASE 7 — REWRITE (LLM) [%s]", lang)
         t_rw = time.time()
         manifest = run_rewrite(manifest, manifest_path, lang, rewrite_endpoint=rewrite_endpoint, glossary=_glossary)
         logger.info("Rewrite [%s] took %.1fs", lang, time.time() - t_rw)
+        _metrics.record("rewrite", "end", lang=lang, duration_s=round(time.time() - t_rw, 1))
 
         # Phase 8 : TTS
         logger.info("PHASE 8 — TTS (CosyVoice3) [%s]", lang)
         t_tts = time.time()
         manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled, force_reprocess=force_reprocess)
         logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
+        _metrics.record("tts", "end", lang=lang, duration_s=round(time.time() - t_tts, 1))
 
         # Phase 9 : Assembly
         logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
@@ -1143,10 +1186,12 @@ def run_pipeline(
 
         # Phase 11 : Export
         logger.info("PHASE 11 — EXPORT [%s]", lang)
-        manifest = run_export(manifest, manifest_path, lang)
+        manifest = run_export(manifest, manifest_path, lang, multitrack=multitrack)
 
     total_time = time.time() - t0
     manifest["metrics"]["total_processing_time_s"] = round(total_time, 1)
+    _metrics.record("pipeline", "end", total_s=round(total_time, 1))
+    manifest["pipeline_metrics"] = _metrics.summary()
     save_manifest(manifest, manifest_path)
 
     logger.info("=" * 60)
