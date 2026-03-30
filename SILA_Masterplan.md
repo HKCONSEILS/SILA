@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.6.0
+**Version du document** : 1.7.0
 **Date** : 2026-03-30
-**Statut** : V2 livrée — Production interne
+**Statut** : V3-alpha — Vidéo 1h avec fond sonore
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -228,6 +228,7 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 | Triton Inference Server | Over-engineering V1-V2. vLLM/llama.cpp suffisent. |
 | RabbitMQ | Plus complexe que Redis pour notre cas. Celery + Redis suffit en V2. |
 | Kubernetes en V1-V2 | Over-engineering. Docker Compose suffit. |
+| IndexTTS-2 (Bilibili) | Testé v3.0.0-alpha. Pas de duration control dans l’API `infer()` malgré la doc marketing. 0/5 segments dans budget ±15%, delta moyen -45% (trop court). Apache 2.0, zh/en/ja uniquement. |
 | Architecture microservices en V1 | Over-engineering. Fonctions modulaires + Celery suffisent. |
 
 ---
@@ -1133,6 +1134,23 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | Taux de segments `review_required` | < 10% | < 5% | Manifeste |
 | Cohérence voix par speaker (subjectif) | Acceptable | Bon | Review humaine |
 
+### 13.5 Baseline mesurée — YouTube 62 min (v3.0.0-alpha)
+
+| Métrique | Valeur |
+|---|---|
+| Segments | 369 |
+| TTS complétés | 369/369 (100%) |
+| QC timing ±15% | 48.5% (179/369) |
+| DNSMOS | 2.84/5.0 |
+| Speech coverage | 62.4% |
+| Gaps > 2s | 196 |
+| Loudness | -16.0 LUFS |
+| RAM peak | 8 Go |
+| Temps pipeline | 63 min (ratio 1:1) |
+| Resume (cached) | 91s |
+
+Note : le QC timing bimodal (35.8% excellent 0-5%, 34.7% hors budget 50-100%) est la signature du non-déterminisme CosyVoice (ADR-011).
+
 ### 13.4 Quality gates
 
 | Gate | Condition de passage | Conséquence si échec |
@@ -1188,8 +1206,8 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 | API REST FastAPI | 4 routes : POST /jobs, GET /jobs, GET /jobs/{id}, GET /jobs/{id}/download/{lang} | ✅ v2.0.0 |
 | PostgreSQL JSONB | Reporté V3 — manifeste JSON + filesystem suffit | ❌ → V3 |
 | UTMOS / DNSMOS | DNSMOS installé (speechmos). Quality gate par segment. UTMOS non dispo en pip. | ✅ v2.0.0-alpha (DNSMOS) |
-| Benchmark TTS | CosyVoice vs Qwen3-TTS vs Voxtral TTS vs IndexTTS-2 vs Chatterbox sur golden set | ❌ (IndexTTS-2 checkpoints indisponibles) |
-| Vidéos longues (1h+) | 30 min validé. 1h+ à tester en V3. | ✅ partiel (30 min) |
+| Benchmark TTS | IndexTTS-2 testé : pas de duration control API, 0/5 dans budget. Non viable. | ✅ v3.0.0-alpha (négatif) |
+| Vidéos longues (1h+) | 62 min YouTube validé. Ratio pipeline 1:1 temps réel. | ✅ v3.0.0-alpha |
 | Glossaire projet | `--glossary` JSON, post-traduction + injection prompt rewrite, glossary_hits loggé | ✅ v2.0.0 |
 | pyloudnorm | Normalisation segment par segment | ❌ (FFmpeg loudnorm 2-pass suffit) |
 | Voice profile P6 | Embedding multi-segment (top 5 par confidence). Max 30s de référence. | ✅ v2.0.0-alpha |
@@ -1203,16 +1221,18 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
 
 ### 14.3 V3 — "Produit" (3-4 mois après V2)
 
-| Ajout | Détail |
-|---|---|
-| UI review | Interface web pour review segmentaire (traduction, timing, audio) |
-| Lip-sync conditionnel | Uniquement segments face-caméra avec désync visible |
-| Détection émotions | Adaptation prosodie TTS selon émotion détectée |
-| Export multi-piste | Pistes séparées (voix, musique, SFX) par langue |
-| Temporal | Orchestration durable, workflows complexes |
-| S3 / MinIO | Stockage objet scalable |
-| Monitoring Prometheus + Grafana | Dashboards temps réel |
-| Auto-routing TTS | Choix du meilleur moteur par langue/speaker/contenu |
+| Ajout | Détail | Statut |
+|---|---|---|
+| UI review | Interface web pour review segmentaire (traduction, timing, audio) | ❌ |
+| Lip-sync conditionnel | Uniquement segments face-caméra avec désync visible | ❌ |
+| Détection émotions | Adaptation prosodie TTS selon émotion détectée | ❌ |
+| Export multi-piste | Pistes séparées (voix, musique, SFX) par langue. `--multitrack` flag. | ✅ v3.0.0-alpha |
+| Temporal | Orchestration durable, workflows complexes | ❌ |
+| S3 / MinIO | Stockage objet scalable | ❌ |
+| Monitoring Prometheus + Grafana | Pipeline metrics JSONL intégré. Prometheus/Grafana reportés. | ✅ v3.0.0-alpha (JSONL) |
+| Auto-routing TTS | Choix du meilleur moteur par langue/speaker/contenu | ❌ |
+| IndexTTS-2 benchmark | Testé — pas de duration control API. 0/5 dans budget. Non viable. | ✅ v3.0.0-alpha (négatif) |
+| Vidéo 1h réelle | YouTube 62 min, 369 segments, ratio 1:1, 62% speech coverage | ✅ v3.0.0-alpha |
 
 ---
 
@@ -1374,7 +1394,7 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
   - **Demucs** : gain qualitatif net sur vidéos avec musique (0 collapse TTS), mais dégradation sur vidéos propres (-20 points QC). → Rendu optionnel.
   - **Phrase-aware** : crée plus de segments plus courts, dégradant systématiquement le QC. L'overhead CosyVoice (~3-4s minimum) rend les segments < 6s impossibles à fitter. → Désactivé par défaut.
   - **Meilleure config V1** : Quality-first, speed contraint [0.95-1.05], seed fixe, sans Demucs, sans phrase-aware = 80% (test_002) / 65% (test_003).
-  - **Bottleneck identifié** : le contrôle de durée TTS (aucun modèle testé — CosyVoice, Qwen3-TTS — n'offre de paramètre target_duration_ms natif). IndexTTS-2 identifié comme challenger V2 (duration control natif).
+  - **Bottleneck identifié** : le contrôle de durée TTS (aucun modèle testé — CosyVoice, Qwen3-TTS — n'offre de paramètre target_duration_ms natif). IndexTTS-2 identifié comme challenger V2 (duration control natif). **RESULTÉ : testé V3, non viable (ADR-014).**
   - **Bug critique découvert** : CosyVoice avec torch cassé générait du silence WAV de la bonne durée. Le QC ne vérifiait que la durée, pas le contenu audio. Les résultats antérieurs (60%/59%) étaient sur du silence. Le fix torch + ajout de silence detection dans le QC a corrigé le problème.
 - **Décisions** :
   - P9 révisé : plancher effectif 6s, distribution cible 6-9s (était 4-8s)
@@ -1415,7 +1435,7 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
 - **Mitigations possibles (V2+)** :
   - `torch.use_deterministic_algorithms(True)` + `CUBLAS_WORKSPACE_CONFIG=:4096:8` — peut ralentir l'inference de 10-20%.
   - Boucle best-of-3 : generer 3 fois, garder le resultat le plus proche du budget. Cout x3 en GPU-time.
-  - Passer a un moteur TTS deterministe (IndexTTS-2 avec duration control natif, quand disponible).
+  - ~~Passer a un moteur TTS deterministe (IndexTTS-2 avec duration control natif)~~ — testé V3, non viable (ADR-014).
 - **Decision** : accepter le non-determinisme en V1-V2. Documenter la variance dans les rapports QC (ajouter min/max/mediane sur N runs). Ne pas optimiser le QC sur des ecarts < 15 points.
 
 ---
@@ -1450,6 +1470,22 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
   - PostgreSQL reporté V3 (manifeste JSON suffit)
   - 1h+ à valider en V3 (30 min OK, extrapolation raisonnable)
 - **Conséquence** : tag v2.0.0. Le pipeline est self-contained sur LXC 228 (sauf Qwen3.5 sur LXC 225 en fallback). Prêt pour V3 (UI review, monitoring, lip-sync).
+
+---
+
+### ADR-014 : V3-alpha — Vidéo 1h, export multi-piste, IndexTTS-2 négatif (mars 2026)
+- **Date** : 2026-03-30
+- **Contexte** : Sprint V3 — 4 chantiers (IndexTTS-2, vidéo 1h, export multi-piste, monitoring metrics).
+- **Résultats** :
+  - **IndexTTS-2** : installé et benchmarké. Le “duration control natif” annoncé n’est PAS exposé dans l’API `infer()`. 0/5 segments dans le budget ±15%, delta moyen -45% (génère systématiquement trop court). Non viable comme remplacement CosyVoice. Ajouté aux briques rejetées.
+  - **Vidéo YouTube 62 min** : pipeline complet, 369 segments, 100% TTS complétés, ratio 1:1 temps réel (63 min pipeline pour 62 min de vidéo). Validation du cas d’usage cible “vidéos longues 1h+”. Demucs a échoué sur 62 min (OOM), fallback audio original transparent.
+  - **Export multi-piste** : `--multitrack` produit 3 fichiers WAV (voix, fond, mix) + MP4 avec 3 pistes audio.
+  - **Monitoring metrics** : `PipelineMetrics` JSONL intégré au pipeline, `show_metrics.py` pour résumé console. Prometheus/Grafana reportés.
+  - **OOM fix** : `torch.cuda.empty_cache()` + `gc.collect()` entre chaque phase GPU (Demucs/ASR/TTS). Résout l’OOM sur vidéos > 30 min.
+- **Leçons** :
+  - Aucun TTS open-source self-hosted ne propose de duration control natif à l’inférence en mars 2026. Le bottleneck QC (48.5%) est structurel.
+  - Le ratio pipeline 1:1 temps réel est dû au rewrite local Ministral (0.5s/seg).
+- **Décision** : tag v3.0.0-alpha. Prochaine priorité : UI review web (V3 “Produit”).
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
