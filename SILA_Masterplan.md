@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.5.0
+**Version du document** : 1.6.0
 **Date** : 2026-03-30
-**Statut** : V2-alpha — Features qualité livrées
+**Statut** : V2 livrée — Production interne
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -1180,19 +1180,26 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 |---|---|---|
 | Multi-locuteurs | Diarisation pyannote, mapping speaker → voice, per-speaker voice profiles | ✅ v2.0.0-alpha |
 | Multi-langues | Fan-out séquentiel par langue après segmentation. `--target-langs en,es` | ✅ v2.0.0-alpha |
-| Demucs v4 | Mix TTS + fond sonore avec ducking -6dB. Activé par `--demucs`. Détection auto SNR : V2 finale | ✅ v2.0.0-alpha |
-| Décomposition WhisperX | Whisper + alignement + diarisation séparés | ❌ |
+| Demucs v4 | Mix TTS + fond sonore avec ducking -6dB. `--demucs auto/on/off` avec détection SNR | ✅ v2.0.0 |
+| Décomposition WhisperX | 3 interfaces (ASR + Align + Diarize), stubs Qwen3/Voxtral, `--asr-engine` | ✅ v2.0.0 |
 | Évaluation ASR V2 | Benchmark WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2 sur golden set | ❌ |
-| Réécriture contrainte | Fast rewrite via prompt concis (~1s/segment). Migration Mistral Small 3.2 local : V2 finale | ✅ v2.0.0-alpha (prompt optimisé) |
-| Celery + Redis | Dispatch et parallélisme des tâches | ❌ |
-| API REST FastAPI | Upload, suivi, téléchargement | ❌ |
-| PostgreSQL JSONB | Index de consultation, suivi progression | ❌ |
+| Réécriture contrainte | Ministral 3 8B local (0.5s/segment, port 8081). `--rewrite-endpoint` configurable | ✅ v2.0.0 |
+| Celery + Redis | Reporté V3 — le gain ne justifie pas la complexité en V2 | ❌ → V3 |
+| API REST FastAPI | 4 routes : POST /jobs, GET /jobs, GET /jobs/{id}, GET /jobs/{id}/download/{lang} | ✅ v2.0.0 |
+| PostgreSQL JSONB | Reporté V3 — manifeste JSON + filesystem suffit | ❌ → V3 |
 | UTMOS / DNSMOS | DNSMOS installé (speechmos). Quality gate par segment. UTMOS non dispo en pip. | ✅ v2.0.0-alpha (DNSMOS) |
 | Benchmark TTS | CosyVoice vs Qwen3-TTS vs Voxtral TTS vs IndexTTS-2 vs Chatterbox sur golden set | ❌ (IndexTTS-2 checkpoints indisponibles) |
-| Vidéos longues (1h+) | Chunking technique + réconciliation | ❌ |
-| Glossaire projet | Injection dans traduction et réécriture | ❌ |
+| Vidéos longues (1h+) | 30 min validé. 1h+ à tester en V3. | ✅ partiel (30 min) |
+| Glossaire projet | `--glossary` JSON, post-traduction + injection prompt rewrite, glossary_hits loggé | ✅ v2.0.0 |
 | pyloudnorm | Normalisation segment par segment | ❌ (FFmpeg loudnorm 2-pass suffit) |
 | Voice profile P6 | Embedding multi-segment (top 5 par confidence). Max 30s de référence. | ✅ v2.0.0-alpha |
+| Détection SNR auto Demucs | `--demucs auto`, seuil 0.10, spectral energy ratio | ✅ v2.0.0 |
+| Audit audio automatisé | `scripts/audio_audit.py`, 8 critères, verdict PASS/WARNING/FAIL | ✅ v2.0.0 |
+| Reprise par segment | Phases 6-11, manifeste partiel tous les 5 segments, `--force-reprocess` | ✅ v2.0.0 |
+| Rewrite local Ministral 3 8B | 0.5s/segment sur port 8081, `--rewrite-endpoint` configurable | ✅ v2.0.0 |
+
+**V2 livrée** : tag `v2.0.0` (2026-03-30). 15 features sur 16 livrées.
+Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8%).
 
 ### 14.3 V3 — "Produit" (3-4 mois après V2)
 
@@ -1427,6 +1434,22 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Ce qui reste pour V2 finale** : Celery + Redis, FastAPI, PostgreSQL, chunking 1h+, benchmark TTS (5 candidats), détection auto SNR pour Demucs, migration rewrite vers Mistral Small 3.2 local, décomposition WhisperX.
 - **QC** : 60-80% timing ±15% (variance CosyVoice, ADR-011), DNSMOS 2.97-3.05/5.0 (borderline PASS).
 - **Décision** : tag v2.0.0-alpha. Les features qualité sont livrées. Le reste est de l'infrastructure de scale.
+
+---
+
+### ADR-013 : V2 livrée — Reprise par segment, FastAPI, vidéo longue validée (mars 2026)
+- **Date** : 2026-03-30
+- **Contexte** : Sprint scale V2 — 3 chantiers livrés en une session autonome.
+- **Résultats** :
+  - **Reprise par segment** : le manifeste est sauvegardé tous les 5 segments TTS. Un run interrompu reprend exactement là où il s’est arrêté. Run cached sur test_002 (5 segments) : 3.3s. Flag `--force-reprocess` pour ignorer le cache.
+  - **FastAPI minimal** : 4 routes (create, list, status, download). Upload → pipeline async → suivi statut → download MP4. Pas de PostgreSQL — l’API lit le manifeste JSON directement.
+  - **Vidéo 30 min** : test_005 (concaténation 5× test_003) traité bout-en-bout. 172 segments, 89 min pipeline (3× temps réel), RAM peak 7.5 Go / 32 Go. QC 48.8% (variance CosyVoice ADR-011), DNSMOS 2.96, loudness -16.1 LUFS.
+  - **Ministral 3 8B local** : provisionné sur LXC 228, llama-server port 8081, 0.5s/segment. Endpoint configurable via `--rewrite-endpoint`. Élimine la dépendance à LXC 225 pour le rewrite.
+- **Décisions** :
+  - Celery + Redis reporté V3 (gain insuffisant vs complexité)
+  - PostgreSQL reporté V3 (manifeste JSON suffit)
+  - 1h+ à valider en V3 (30 min OK, extrapolation raisonnable)
+- **Conséquence** : tag v2.0.0. Le pipeline est self-contained sur LXC 228 (sauf Qwen3.5 sur LXC 225 en fallback). Prêt pour V3 (UI review, monitoring, lip-sync).
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
