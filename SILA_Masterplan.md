@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.7.0
+**Version du document** : 1.8.0
 **Date** : 2026-03-30
-**Statut** : V3-alpha — Vidéo 1h avec fond sonore
+**Statut** : V3 livrée — Produit
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -296,6 +296,35 @@ CLI (Python)
     ▼         ▼          ▼          ▼          ▼          ▼
  Worker    Worker     Worker     Worker     Worker     Worker
  Media     Speech     Translate  TTS        PostProd   LipSync
+```
+
+#### V3 — Architecture réelle livrée
+
+```
+┌─────────────────────────────────────────────────┐
+│  React UI (Vite build, static files)            │
+│  Dashboard / Review / Upload                    │
+│  WebSocket (progression temps réel)              │
+└────────────────┬────────────────────────────────┘
+                 │ port 8000
+┌────────────────┴────────────────────────────────┐
+│  FastAPI                                        │
+│  REST: /jobs, /segments, /download               │
+│  WebSocket: /ws/jobs/{id}                        │
+│  Static files: frontend/dist/                    │
+└────────────────┬────────────────────────────────┘
+                 │
+┌────────────────┴────────────────────────────────┐
+│  Pipeline Runner (thread)                       │
+│  PipelineEventBus → WebSocket                   │
+│  Manifeste JSON (source de vérité)               │
+│  Reprise par segment (save tous les 5 TTS)      │
+└───┬─────────┬───────────┬────────────┬───────┘
+    │         │           │            │
+ Demucs    WhisperX   CosyVoice   Ministral 3
+ (chunk)   (3 ifaces)  (TTS GPU)   (rewrite)
+            ASR+Align   seed 42     port 8081
+            +Diarize    [0.95-1.05]
 ```
 
 ### 5.2 Frontières entre domaines
@@ -1028,7 +1057,16 @@ volumes:
   pgdata:
 ```
 
-### 11.3 Conventions de nommage des artefacts
+### 11.3 Services systemd (V3)
+
+| Service | Port | Description | Commande |
+|---|---|---|---|
+| `sila-api` | 8000 | FastAPI + UI React | `uvicorn src.api.app:app --host 0.0.0.0 --port 8000` |
+| `llama-ministral` | 8081 | Ministral 3 8B (rewrite) | `python3 -m llama_cpp.server --model ... --port 8081 --n_gpu_layers 99` |
+
+Les deux services sont configurés en systemd avec restart automatique. Le pipeline se lance via l’API (POST /jobs) ou le CLI.
+
+### 11.4 Conventions de nommage des artefacts
 
 ```
 data/projects/{project_id}/source/input.mp4
@@ -1223,16 +1261,22 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
 
 | Ajout | Détail | Statut |
 |---|---|---|
-| UI review | Interface web pour review segmentaire (traduction, timing, audio) | ❌ |
-| Lip-sync conditionnel | Uniquement segments face-caméra avec désync visible | ❌ |
-| Détection émotions | Adaptation prosodie TTS selon émotion détectée | ❌ |
-| Export multi-piste | Pistes séparées (voix, musique, SFX) par langue. `--multitrack` flag. | ✅ v3.0.0-alpha |
-| Temporal | Orchestration durable, workflows complexes | ❌ |
-| S3 / MinIO | Stockage objet scalable | ❌ |
-| Monitoring Prometheus + Grafana | Pipeline metrics JSONL intégré. Prometheus/Grafana reportés. | ✅ v3.0.0-alpha (JSONL) |
-| Auto-routing TTS | Choix du meilleur moteur par langue/speaker/contenu | ❌ |
+| UI review web | React 18 + TypeScript + Tailwind. Dashboard, review segmentaire avec audio, upload + config. Servi par FastAPI port 8000. | ✅ v3.0.0 |
+| WebSocket progression | `ws://host:8000/ws/jobs/{id}`, PipelineEventBus thread-safe | ✅ v3.0.0 |
+| Multi-lang batch | Trad+rewrite ALL langues avant TTS séquentiel | ✅ v3.0.0 |
+| Export multi-piste | `--multitrack` : voix + fond + mix, MP4 3 pistes audio | ✅ v3.0.0-alpha |
+| Monitoring | Pipeline metrics JSONL + `show_metrics.py`. Prometheus/Grafana reportés. | ✅ v3.0.0-alpha (JSONL) |
+| Demucs chunking | Chunks 5 min, streaming disque, pas d’OOM sur 1h+ | ✅ v3.0.0-alpha |
 | IndexTTS-2 benchmark | Testé — pas de duration control API. 0/5 dans budget. Non viable. | ✅ v3.0.0-alpha (négatif) |
 | Vidéo 1h réelle | YouTube 62 min, 369 segments, ratio 1:1, 62% speech coverage | ✅ v3.0.0-alpha |
+| Lip-sync conditionnel | Uniquement segments face-caméra avec désync visible | ❌ Reporté V4 |
+| Détection émotions | Adaptation prosodie TTS selon émotion détectée | ❌ Reporté V4 |
+| Temporal | Orchestration durable, workflows complexes | ❌ Reporté V4 |
+| S3 / MinIO | Stockage objet scalable | ❌ Reporté V4 |
+| Auto-routing TTS | Choix du meilleur moteur par langue/speaker/contenu | ❌ Reporté V4 |
+
+**V3 livrée** : tag `v3.0.0` (2026-03-30). UI web complète (dashboard, review, upload), pipeline 1h validé, Demucs chunking, multi-piste, WebSocket temps réel.
+Accès : `http://192.168.1.228:8000/`
 
 ---
 
@@ -1486,6 +1530,27 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
   - Aucun TTS open-source self-hosted ne propose de duration control natif à l’inférence en mars 2026. Le bottleneck QC (48.5%) est structurel.
   - Le ratio pipeline 1:1 temps réel est dû au rewrite local Ministral (0.5s/seg).
 - **Décision** : tag v3.0.0-alpha. Prochaine priorité : UI review web (V3 “Produit”).
+
+---
+
+### ADR-015 : V3 livrée — UI web, architecture finale (mars 2026)
+- **Date** : 2026-03-30
+- **Contexte** : Sprint UI V3 — 3 chantiers livrés (dashboard, review segmentaire, upload).
+- **Résultats** :
+  - **Dashboard** (`/`) : liste des jobs avec badge statut, polling 10s.
+  - **JobDetail** (`/jobs/{id}`) : progression WebSocket temps réel, barre de progression, log d’événements, boutons download par langue.
+  - **SegmentReview** (`/jobs/{id}/review?lang=en`) : tableau triable, lecture audio par segment, filtre PASS/FAIL, résumé QC.
+  - **NewJob** (`/new`) : upload drag & drop, sélection langues, options Demucs/diarisation/multitrack.
+  - **Stack** : Vite + React 18 + TypeScript + Tailwind CSS, thème dark. Build servi par FastAPI (même port 8000).
+  - **Nouvelles routes API** : `GET /jobs/{id}/segments?lang=en`, `GET /jobs/{id}/segments/{seg_id}/audio/{lang}`.
+- **Architecture** : FastAPI unique (port 8000) sert l’API REST, le WebSocket, et les fichiers statiques React. Le pipeline tourne dans un thread Python (shared memory pour l’event bus). Pas de serveur Node, pas de Redis, pas de PostgreSQL. Le manifeste JSON reste la source de vérité.
+- **Décision** : tag v3.0.0. SILA est un produit fonctionnel. Les features reportées (lip-sync, détection émotions, Temporal, S3, auto-routing TTS) sont V4+.
+- **Tags du projet** :
+  - `v1.0.0` — Proof of Value (pipeline bout-en-bout, 1 langue, 1 locuteur)
+  - `v2.0.0-alpha` — Features qualité (multi-lang, diarisation, Demucs, P6, DNSMOS)
+  - `v2.0.0` — Production interne (reprise segment, FastAPI, 30 min)
+  - `v3.0.0-alpha` — Vidéo 1h + fond sonore (Demucs chunking, multi-piste, metrics)
+  - `v3.0.0` — Produit (UI web : dashboard, review, upload)
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
