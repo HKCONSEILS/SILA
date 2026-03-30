@@ -64,10 +64,14 @@ def build_segments_from_words(
         end = current_words[-1].get("end_ms", 0)
         duration = end - start
         text = " ".join(w.get("text", "") for w in current_words)
+        # V2: use majority speaker from words (diarization)
+        word_speakers = [w.get("speaker", speaker_id) for w in current_words]
+        from collections import Counter
+        majority_speaker = Counter(word_speakers).most_common(1)[0][0] if word_speakers else speaker_id
         seg_index = len(segments) + 1
         segments.append(Segment(
             segment_id=f"seg_{seg_index:04d}",
-            speaker_id=speaker_id,
+            speaker_id=majority_speaker,
             start_ms=start,
             end_ms=end,
             duration_ms=duration,

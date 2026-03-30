@@ -169,8 +169,8 @@ def run_demucs(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_asr(manifest: dict, manifest_path: Path) -> dict:
-    """Phase 3 : ASR via WhisperX."""
+def run_asr(manifest: dict, manifest_path: Path, diarize: bool = False) -> dict:
+    """Phase 3 : ASR via WhisperX. V2: optional diarization."""
     from src.engines.asr.whisperx_engine import WhisperXEngine
 
     project_dir = manifest_path.parent
@@ -194,7 +194,7 @@ def run_asr(manifest: dict, manifest_path: Path) -> dict:
     try:
         engine = WhisperXEngine()
         source_lang = manifest["project"]["source_lang"]
-        result = engine.transcribe(audio_path, language=source_lang)
+        result = engine.transcribe(audio_path, language=source_lang, diarize=diarize)
         engine.unload()
 
         transcript_data = {
@@ -442,7 +442,7 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
 # =========================================================================
 
 
-def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: str = "cosyvoice") -> dict:
+def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: str = "cosyvoice", diarize_enabled: bool = False) -> dict:
     """Phase 8 : TTS via CosyVoice3 ou Voxtral."""
     if tts_engine == "voxtral":
         from src.engines.tts.voxtral_engine import VoxtralEngine as EngineClass
@@ -476,12 +476,56 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
         else:
             engine = EngineClass(model_dir=model_path)
 
-        # Build multi-segment voice reference (P6 masterplan)
+        # Build voice reference(s) — per-speaker if diarized (V2)
         vocals_path = project_dir / "extracted" / "vocals.wav"
         audio_path = vocals_path if vocals_path.exists() else project_dir / "extracted" / "audio_48k.wav"
         segments = manifest["segments"]
-        n_ref = engine.set_voice_reference_multi(audio_path, segments, n_best=5, max_duration_s=30.0)
-        logger.info("Voice reference: %d segments selected", n_ref)
+
+        # Detect unique speakers
+        speakers = sorted(set(s.get("speaker_id", "spk_0") for s in segments))
+        speaker_refs = {}
+
+        if diarize_enabled and len(speakers) > 1:
+            logger.info("Multi-speaker mode: %d speakers detected: %s", len(speakers), speakers)
+            import soundfile as sf
+            import numpy as np
+
+            for spk in speakers:
+                spk_segments = [s for s in segments if s.get("speaker_id") == spk]
+                ref_dir = project_dir / "voice_refs"
+                ref_dir.mkdir(parents=True, exist_ok=True)
+                ref_path = ref_dir / f"{spk}_multi_ref.wav"
+
+                # Build per-speaker voice reference
+                n_ref = engine.set_voice_reference_multi(audio_path, spk_segments, n_best=5, max_duration_s=30.0)
+                # Rename the ref file to speaker-specific name
+                default_ref = ref_dir / "spk_0_multi_ref.wav"
+                if default_ref.exists() and default_ref != ref_path:
+                    import shutil
+                    shutil.move(str(default_ref), str(ref_path))
+                elif not ref_path.exists():
+                    # Fallback: use voice_ref.wav if it exists
+                    vr = ref_dir / "voice_ref.wav"
+                    if vr.exists():
+                        import shutil
+                        shutil.copy2(str(vr), str(ref_path))
+
+                speaker_refs[spk] = str(ref_path)
+                logger.info("Voice ref for %s: %d segments -> %s", spk, n_ref, ref_path)
+
+            # Store speaker refs in manifest
+            manifest["speakers"] = {
+                spk: {
+                    "voice_ref_uri": speaker_refs.get(spk, ""),
+                    "segments_used_for_ref": [s["segment_id"] for s in segments if s.get("speaker_id") == spk][:5],
+                }
+                for spk in speakers
+            }
+        else:
+            # Single speaker (V1 behavior)
+            n_ref = engine.set_voice_reference_multi(audio_path, segments, n_best=5, max_duration_s=30.0)
+            logger.info("Voice reference: %d segments selected (single speaker)", n_ref)
+            speaker_refs["spk_0"] = engine._voice_ref_path
 
         translations_key = f"_translations_{target_lang}"
         if translations_key not in manifest:
@@ -497,6 +541,19 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             text = trans["translated_text"]
             budget_ms = trans["timing_budget_ms"]
             output_path = tts_dir / f"{seg_id}.wav"
+
+            # V2: switch voice reference per speaker
+            if diarize_enabled and len(speaker_refs) > 1:
+                # Find speaker for this segment
+                seg_speaker = "spk_0"
+                for s in segments:
+                    if s.get("segment_id") == seg_id:
+                        seg_speaker = s.get("speaker_id", "spk_0")
+                        break
+                ref_path = speaker_refs.get(seg_speaker)
+                if ref_path and ref_path != engine._voice_ref_path:
+                    engine._voice_ref_path = ref_path
+                    logger.info("Switched voice ref to %s for %s", seg_speaker, seg_id)
 
             # Truncate excessively long text to prevent absurd TTS durations
             max_chars = max(200, int(budget_ms * 0.02))  # ~20 chars/sec
@@ -617,6 +674,21 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             theoretical_ms = int((tts_input_chars / debit) * 1000)
             tts_overhead_ms = tts_result_ms - theoretical_ms
 
+            # V2: DNSMOS quality scoring per segment
+            dnsmos_score = {}
+            try:
+                from src.engines.qc.dnsmos_engine import DNSMOSEngine
+                if not hasattr(run_tts, '_dnsmos'):
+                    run_tts._dnsmos = DNSMOSEngine()
+                dnsmos_score = run_tts._dnsmos.score(final_path)
+                logger.info("DNSMOS %s: ovrl=%.2f sig=%.2f bak=%.2f p808=%.2f",
+                           seg_id, dnsmos_score.get("ovrl_mos", 0),
+                           dnsmos_score.get("sig_mos", 0),
+                           dnsmos_score.get("bak_mos", 0),
+                           dnsmos_score.get("p808_mos", 0))
+            except Exception as exc:
+                logger.warning("DNSMOS scoring failed for %s: %s", seg_id, exc)
+
             tts_outputs.append({
                 "segment_id": seg_id,
                 "audio_path": str(final_path),
@@ -633,6 +705,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "tts_speed_used": round(tts_speed_used, 3) if isinstance(tts_speed_used, float) else 1.0,
                 "tts_attempts": tts_attempts if isinstance(tts_attempts, int) else 1,
                 "rewrite_reason": trans.get("rewrite_reason"),
+                "dnsmos": dnsmos_score,
             })
 
         engine.unload()
@@ -657,8 +730,11 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
 # =========================================================================
 
 
-def run_assembly(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 9 : Assembly — place TTS segments on timeline + loudnorm."""
+def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_enabled: bool = False) -> dict:
+    """Phase 9 : Assembly — place TTS segments on timeline + loudnorm.
+
+    V2: when demucs_enabled, mixes TTS with background audio (accompaniment stems).
+    """
     from src.media.assembly import assemble_segments
 
     project_dir = manifest_path.parent
@@ -687,10 +763,21 @@ def run_assembly(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         tts_outputs = manifest[tts_key]
         total_duration_ms = manifest["project"]["duration_ms"]
 
+        # V2: pass background audio (Demucs accompaniment) if available
+        background_audio_path = None
+        if demucs_enabled:
+            accomp_path = project_dir / "extracted" / "accompaniment.wav"
+            if accomp_path.exists():
+                background_audio_path = accomp_path
+                logger.info("Background audio found: %s", accomp_path)
+            else:
+                logger.warning("Demucs enabled but no accompaniment.wav found — mixing without background")
+
         assemble_segments(
             segments=tts_outputs,
             output_path=mix_raw,
             total_duration_ms=total_duration_ms,
+            background_audio_path=background_audio_path,
         )
 
         # Loudnorm
@@ -737,13 +824,17 @@ def run_qc(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         for tts_out in tts_outputs:
             audio_path = Path(tts_out["audio_path"])
             result = engine.check(audio_path, tts_out["timing_budget_ms"])
-            segments_qc.append({
+            seg_qc = {
                 "segment_id": tts_out["segment_id"],
                 "budget_ms": tts_out["timing_budget_ms"],
                 "actual_ms": result.duration_ms,
                 "delta_ms": result.timing_delta_ms,
                 "flags": result.flags,
-            })
+            }
+            # V2: pass DNSMOS scores through to QC report
+            if "dnsmos" in tts_out:
+                seg_qc["dnsmos"] = tts_out["dnsmos"]
+            segments_qc.append(seg_qc)
 
         # Mix-level checks (loudness, true peak, duration)
         mix_path = project_dir / "mix" / f"mix_{target_lang}.wav"
@@ -831,6 +922,7 @@ def run_pipeline(
     from_stage: str | None = None,
     tts_engine: str = "cosyvoice",
     demucs_enabled: bool = False,
+    diarize_enabled: bool = False,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -879,7 +971,7 @@ def run_pipeline(
     logger.info("PHASE 3 — ASR (WhisperX)")
     logger.info("=" * 60)
     t_asr = time.time()
-    manifest = run_asr(manifest, manifest_path)
+    manifest = run_asr(manifest, manifest_path, diarize=diarize_enabled)
     logger.info("ASR took %.1fs", time.time() - t_asr)
 
     # Phase 4 : Segmentation
@@ -910,12 +1002,12 @@ def run_pipeline(
         # Phase 8 : TTS
         logger.info("PHASE 8 — TTS (CosyVoice3) [%s]", lang)
         t_tts = time.time()
-        manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine)
+        manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled)
         logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
 
         # Phase 9 : Assembly
         logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
-        manifest = run_assembly(manifest, manifest_path, lang)
+        manifest = run_assembly(manifest, manifest_path, lang, demucs_enabled=demucs_enabled)
 
         # Phase 10 : QC
         logger.info("PHASE 10 — QC [%s]", lang)

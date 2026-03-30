@@ -138,6 +138,28 @@ class BasicQCEngine(QCInterface):
             statuses = [v["status"] for v in mix_checks.values()]
             report["mix_overall"] = "FAIL" if "FAIL" in statuses else ("WARNING" if "WARNING" in statuses else "PASS")
 
+        # V2: DNSMOS quality stats (if available in segments)
+        dnsmos_scores = []
+        for s in segments_qc:
+            dnsmos = s.get("dnsmos", {})
+            if dnsmos and dnsmos.get("ovrl_mos", 0) > 0:
+                dnsmos_scores.append(dnsmos["ovrl_mos"])
+
+        if dnsmos_scores:
+            import numpy as np
+            report["dnsmos"] = {
+                "mean": round(float(np.mean(dnsmos_scores)), 3),
+                "min": round(float(np.min(dnsmos_scores)), 3),
+                "max": round(float(np.max(dnsmos_scores)), 3),
+                "count": len(dnsmos_scores),
+                "quality_gate": "PASS" if float(np.mean(dnsmos_scores)) >= 3.0 else (
+                    "WARNING" if float(np.mean(dnsmos_scores)) >= 2.0 else "FAIL"
+                ),
+            }
+            logger.info("DNSMOS: mean=%.2f min=%.2f max=%.2f gate=%s",
+                        report["dnsmos"]["mean"], report["dnsmos"]["min"],
+                        report["dnsmos"]["max"], report["dnsmos"]["quality_gate"])
+
         report["can_export"] = fit_ok > 0 and report.get("mix_overall", "PASS") != "FAIL"
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
