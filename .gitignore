@@ -30,3 +30,5 @@ models/
 *.log
 logs/
 checkpoints/
+frontend/node_modules/
+frontend/dist/

@@ -160,6 +160,77 @@ async def get_job(job_id: str):
     }
 
 
+@app.get("/jobs/{job_id}/segments")
+async def get_segments(job_id: str, lang: str = "en"):
+    """Return all segments with review data."""
+    manifest_path = os.path.join(PROJECTS_DIR, job_id, "manifest.json")
+    if not os.path.exists(manifest_path):
+        raise HTTPException(404, "Job not found")
+
+    with open(manifest_path) as f:
+        m = json.load(f)
+
+    # Load translations
+    trans_path = os.path.join(PROJECTS_DIR, job_id, "asr", f"translations_{lang}.json")
+    translations = {}
+    if os.path.exists(trans_path):
+        with open(trans_path) as f:
+            for t in json.load(f):
+                translations[t["segment_id"]] = t
+
+    # Load TTS manifest
+    tts_path = os.path.join(PROJECTS_DIR, job_id, "tts", lang, "tts_manifest.json")
+    tts_data = {}
+    if os.path.exists(tts_path):
+        with open(tts_path) as f:
+            for t in json.load(f):
+                tts_data[t["segment_id"]] = t
+
+    segments = []
+    for seg in m.get("segments", []):
+        sid = seg["segment_id"]
+        trans = translations.get(sid, {})
+        tts = tts_data.get(sid, {})
+        budget = seg["timing_budget_ms"]
+        dur = tts.get("duration_ms", 0)
+        delta = (dur - budget) / budget * 100 if budget and dur else 0
+
+        segments.append({
+            "segment_id": sid,
+            "speaker_id": seg.get("speaker_id"),
+            "start_ms": seg["start_ms"],
+            "end_ms": seg["end_ms"],
+            "source_text": seg.get("source_text", ""),
+            "translated_text": trans.get("translated_text", ""),
+            "timing_budget_ms": budget,
+            "tts_duration_ms": dur,
+            "delta_pct": round(delta, 1),
+            "dnsmos": tts.get("dnsmos"),
+            "status": "PASS" if abs(delta) <= 15 else "FAIL",
+            "has_audio": bool(tts.get("audio_path")),
+        })
+
+    return {"segments": segments, "total": len(segments)}
+
+
+@app.get("/jobs/{job_id}/segments/{segment_id}/audio/{lang}")
+async def get_segment_audio(job_id: str, segment_id: str, lang: str):
+    """Serve a TTS segment WAV file."""
+    tts_path = os.path.join(PROJECTS_DIR, job_id, "tts", lang, "tts_manifest.json")
+    if not os.path.exists(tts_path):
+        raise HTTPException(404, "TTS manifest not found")
+
+    with open(tts_path) as f:
+        for t in json.load(f):
+            if t["segment_id"] == segment_id:
+                audio_path = t.get("audio_path", "")
+                if os.path.exists(audio_path):
+                    return FileResponse(audio_path, media_type="audio/wav")
+                break
+
+    raise HTTPException(404, "Audio not found")
+
+
 @app.get("/jobs/{job_id}/download/{lang}")
 async def download(job_id: str, lang: str):
     """Download the dubbed MP4."""
@@ -167,3 +238,11 @@ async def download(job_id: str, lang: str):
     if not os.path.exists(mp4_path):
         raise HTTPException(404, f"Export not found for language '{lang}'")
     return FileResponse(mp4_path, filename=f"{job_id}_{lang}.mp4", media_type="video/mp4")
+
+
+# Serve React frontend (built files)
+from fastapi.staticfiles import StaticFiles
+
+_frontend_dir = os.path.join(os.path.dirname(__file__), "../../frontend/dist")
+if os.path.isdir(_frontend_dir):
+    app.mount("/", StaticFiles(directory=_frontend_dir, html=True), name="frontend")
