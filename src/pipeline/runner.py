@@ -657,8 +657,11 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
 # =========================================================================
 
 
-def run_assembly(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
-    """Phase 9 : Assembly — place TTS segments on timeline + loudnorm."""
+def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_enabled: bool = False) -> dict:
+    """Phase 9 : Assembly — place TTS segments on timeline + loudnorm.
+
+    V2: when demucs_enabled, mixes TTS with background audio (accompaniment stems).
+    """
     from src.media.assembly import assemble_segments
 
     project_dir = manifest_path.parent
@@ -687,10 +690,21 @@ def run_assembly(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
         tts_outputs = manifest[tts_key]
         total_duration_ms = manifest["project"]["duration_ms"]
 
+        # V2: pass background audio (Demucs accompaniment) if available
+        background_audio_path = None
+        if demucs_enabled:
+            accomp_path = project_dir / "extracted" / "accompaniment.wav"
+            if accomp_path.exists():
+                background_audio_path = accomp_path
+                logger.info("Background audio found: %s", accomp_path)
+            else:
+                logger.warning("Demucs enabled but no accompaniment.wav found — mixing without background")
+
         assemble_segments(
             segments=tts_outputs,
             output_path=mix_raw,
             total_duration_ms=total_duration_ms,
+            background_audio_path=background_audio_path,
         )
 
         # Loudnorm
@@ -915,7 +929,7 @@ def run_pipeline(
 
         # Phase 9 : Assembly
         logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
-        manifest = run_assembly(manifest, manifest_path, lang)
+        manifest = run_assembly(manifest, manifest_path, lang, demucs_enabled=demucs_enabled)
 
         # Phase 10 : QC
         logger.info("PHASE 10 — QC [%s]", lang)
