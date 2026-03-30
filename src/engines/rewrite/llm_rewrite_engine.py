@@ -79,7 +79,7 @@ class LLMRewriteEngine(RewriterInterface):
                 "prompt": prompt,
                 "temperature": 0.3,
                 "max_tokens": max_tokens,
-                "stop": ["Original:", "\n\nOriginal"],
+                "stop": ["Original:", "\n\nOriginal", "\n\n", "\nShort:"],
             },
         )
         response.raise_for_status()
@@ -123,8 +123,13 @@ class LLMRewriteEngine(RewriterInterface):
                 logger.debug("Rewrite attempt 1 empty, retrying with more tokens")
                 rewritten = self._call_llm(prompt, max_tokens=120)
 
-            # Clean up quotes
-            if rewritten.startswith('"') and rewritten.endswith('"'):
+            # Clean up: extract text between quotes if present, strip metadata
+            import re as _re
+            # Try to extract quoted text first (model often wraps in quotes)
+            quoted = _re.search(r'"([^"]+)"', rewritten)
+            if quoted and len(quoted.group(1)) > 10:
+                rewritten = quoted.group(1).strip()
+            elif rewritten.startswith('"') and rewritten.endswith('"'):
                 rewritten = rewritten[1:-1].strip()
 
             char_count = len(rewritten)
