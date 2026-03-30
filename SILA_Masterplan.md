@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.4.3
+**Version du document** : 1.5.0
 **Date** : 2026-03-30
-**Statut** : Draft — En cours de validation
+**Statut** : V2-alpha — Features qualité livrées
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -1172,24 +1172,27 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 
 **Livrables V1** : CLI fonctionnel, manifeste JSON complet, MP4 exporté, SRT synchronisé, rapport QC basique.
 
+**V1 livrée** : tag `v1.0.0` (commit `61552b9`, 2026-03-29). QC 80%/65%, masterplan v1.4.2.
+
 ### 14.2 V2 — "Production interne" (3-4 mois après V1)
 
-| Ajout | Détail |
-|---|---|
-| Multi-locuteurs | Diarisation pyannote, mapping speaker → voice |
-| Multi-langues | Fan-out parallèle après segmentation |
-| Demucs v4 | Activé par défaut. Détection automatique fond sonore (SNR). Mix avec stems |
-| Décomposition WhisperX | Whisper + alignement + diarisation séparés |
-| Évaluation ASR V2 | Benchmark WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2 sur golden set |
-| Réécriture contrainte | Mistral Small 3.2 24B (remplacement Qwen3.5-27B remote). Cohabitation GPU locale. |
-| Celery + Redis | Dispatch et parallélisme des tâches |
-| API REST FastAPI | Upload, suivi, téléchargement |
-| PostgreSQL JSONB | Index de consultation, suivi progression |
-| UTMOS | Quality gate automatique |
-| Benchmark TTS | CosyVoice vs Qwen3-TTS vs Voxtral TTS sur golden set |
-| Vidéos longues (1h+) | Chunking technique + réconciliation |
-| Glossaire projet | Injection dans traduction et réécriture |
-| pyloudnorm | Normalisation segment par segment |
+| Ajout | Détail | Statut |
+|---|---|---|
+| Multi-locuteurs | Diarisation pyannote, mapping speaker → voice, per-speaker voice profiles | ✅ v2.0.0-alpha |
+| Multi-langues | Fan-out séquentiel par langue après segmentation. `--target-langs en,es` | ✅ v2.0.0-alpha |
+| Demucs v4 | Mix TTS + fond sonore avec ducking -6dB. Activé par `--demucs`. Détection auto SNR : V2 finale | ✅ v2.0.0-alpha |
+| Décomposition WhisperX | Whisper + alignement + diarisation séparés | ❌ |
+| Évaluation ASR V2 | Benchmark WhisperX vs Qwen3-ASR vs Voxtral Mini Transcribe V2 sur golden set | ❌ |
+| Réécriture contrainte | Fast rewrite via prompt concis (~1s/segment). Migration Mistral Small 3.2 local : V2 finale | ✅ v2.0.0-alpha (prompt optimisé) |
+| Celery + Redis | Dispatch et parallélisme des tâches | ❌ |
+| API REST FastAPI | Upload, suivi, téléchargement | ❌ |
+| PostgreSQL JSONB | Index de consultation, suivi progression | ❌ |
+| UTMOS / DNSMOS | DNSMOS installé (speechmos). Quality gate par segment. UTMOS non dispo en pip. | ✅ v2.0.0-alpha (DNSMOS) |
+| Benchmark TTS | CosyVoice vs Qwen3-TTS vs Voxtral TTS vs IndexTTS-2 vs Chatterbox sur golden set | ❌ (IndexTTS-2 checkpoints indisponibles) |
+| Vidéos longues (1h+) | Chunking technique + réconciliation | ❌ |
+| Glossaire projet | Injection dans traduction et réécriture | ❌ |
+| pyloudnorm | Normalisation segment par segment | ❌ (FFmpeg loudnorm 2-pass suffit) |
+| Voice profile P6 | Embedding multi-segment (top 5 par confidence). Max 30s de référence. | ✅ v2.0.0-alpha |
 
 ### 14.3 V3 — "Produit" (3-4 mois après V2)
 
@@ -1409,5 +1412,21 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 - **Decision** : accepter le non-determinisme en V1-V2. Documenter la variance dans les rapports QC (ajouter min/max/mediane sur N runs). Ne pas optimiser le QC sur des ecarts < 15 points.
 
 ---
+---
+
+### ADR-012 : V2-alpha — Features qualité livrées (mars 2026)
+- **Date** : 2026-03-30
+- **Contexte** : Sprint V2 intensif (2 nuits + sessions interactives). 6 features V2 livrées sur main en 48h.
+- **Features livrées** :
+  - Multi-langues : `--target-langs en,es` → N MP4 en 1 run, tronc commun exécuté une seule fois
+  - Multi-locuteurs : `--diarize` → pyannote 3.1, per-speaker voice profiles, voice switching validé (2 speakers)
+  - Demucs + mix : `--demucs` → fond sonore mixé avec ducking -6dB (fade 50ms, expansion 100ms)
+  - Fast rewrite : prompt concis → 1s/segment (était 60s avec thinking Qwen3.5)
+  - Voice profile P6 : top 5 segments par confidence, max 30s de référence
+  - DNSMOS quality gate : score par segment, stats agrégées dans rapport QC, seuils PASS/WARNING/FAIL
+- **Ce qui reste pour V2 finale** : Celery + Redis, FastAPI, PostgreSQL, chunking 1h+, benchmark TTS (5 candidats), détection auto SNR pour Demucs, migration rewrite vers Mistral Small 3.2 local, décomposition WhisperX.
+- **QC** : 60-80% timing ±15% (variance CosyVoice, ADR-011), DNSMOS 2.97-3.05/5.0 (borderline PASS).
+- **Décision** : tag v2.0.0-alpha. Les features qualité sont livrées. Le reste est de l'infrastructure de scale.
+
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
