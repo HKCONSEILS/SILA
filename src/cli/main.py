@@ -74,6 +74,7 @@ def _setup_logging(verbose: bool) -> None:
 @click.option("--verbose", "-v", is_flag=True, help="Mode verbose (DEBUG).")
 @click.option("--phrase-aware", is_flag=True, default=False, help="Enable phrase-aware segmentation (off by default).")
 @click.option("--demucs", is_flag=True, default=False, help="Enable Demucs vocal separation (for videos with background music).")
+@click.option("--diarize", is_flag=True, default=False, help="Enable multi-speaker diarization via pyannote (requires HF token).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -93,6 +94,7 @@ def cli(
     tts_engine: str,
     phrase_aware: bool,
     demucs: bool,
+    diarize: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -119,6 +121,8 @@ def cli(
         console.print(f"  TTS engine: {tts_engine}")
         if demucs:
             console.print("  Demucs: ENABLED")
+        if diarize:
+            console.print("  Diarize: ENABLED")
         manifest = run_pipeline(
             video_path=input_video,
             source_lang=source_lang,
@@ -129,6 +133,7 @@ def cli(
             from_stage=from_stage,
             tts_engine=tts_engine,
             demucs_enabled=demucs,
+            diarize_enabled=diarize,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
