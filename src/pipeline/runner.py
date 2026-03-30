@@ -315,7 +315,7 @@ def run_segmentation(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None) -> dict:
+def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None, force_reprocess: bool = False) -> dict:
     """Phase 6 : Translate segments via NLLB-200. V2: optional glossary post-processing."""
     from src.engines.mt.nllb_engine import NLLBEngine
 
@@ -323,13 +323,15 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossar
     stage_key = f"translate_{target_lang}"
     translations_path = project_dir / "asr" / f"translations_{target_lang}.json"
 
-    if translations_path.exists():
+    if translations_path.exists() and not force_reprocess:
         logger.info("Translations already exist, loading.")
         with open(translations_path) as f:
             manifest[f"_translations_{target_lang}"] = json.load(f)
         update_stage(manifest, stage_key, StageStatus.COMPLETED)
         save_manifest(manifest, manifest_path)
         return manifest
+    elif force_reprocess and translations_path.exists():
+        logger.info("Force reprocess: ignoring cached translations")
 
     update_stage(manifest, stage_key, StageStatus.RUNNING)
     save_manifest(manifest, manifest_path)
@@ -506,7 +508,7 @@ def run_rewrite(manifest: dict, manifest_path: Path, target_lang: str, rewrite_e
 # =========================================================================
 
 
-def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: str = "cosyvoice", diarize_enabled: bool = False) -> dict:
+def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: str = "cosyvoice", diarize_enabled: bool = False, force_reprocess: bool = False) -> dict:
     """Phase 8 : TTS via CosyVoice3 ou Voxtral."""
     if tts_engine == "voxtral":
         from src.engines.tts.voxtral_engine import VoxtralEngine as EngineClass
@@ -519,13 +521,22 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
     tts_dir.mkdir(parents=True, exist_ok=True)
     tts_manifest_path = tts_dir / "tts_manifest.json"
 
-    if tts_manifest_path.exists():
-        logger.info("TTS already done, loading manifest.")
+    # Segment-level resume: load partial TTS manifest if it exists
+    _existing_tts = {}
+    if tts_manifest_path.exists() and not force_reprocess:
         with open(tts_manifest_path) as f:
-            manifest[f"_tts_{target_lang}"] = json.load(f)
-        update_stage(manifest, stage_key, StageStatus.COMPLETED)
-        save_manifest(manifest, manifest_path)
-        return manifest
+            existing = json.load(f)
+        _existing_tts = {e["segment_id"]: e for e in existing}
+        if len(_existing_tts) >= len(manifest.get("segments", [])):
+            logger.info("TTS fully completed (%d segments), loading.", len(_existing_tts))
+            manifest[f"_tts_{target_lang}"] = existing
+            update_stage(manifest, stage_key, StageStatus.COMPLETED)
+            save_manifest(manifest, manifest_path)
+            return manifest
+        logger.info("TTS partial resume: %d/%d segments already done",
+                    len(_existing_tts), len(manifest.get("segments", [])))
+    elif force_reprocess and tts_manifest_path.exists():
+        logger.info("Force reprocess: ignoring cached TTS")
 
     update_stage(manifest, stage_key, StageStatus.RUNNING)
     save_manifest(manifest, manifest_path)
@@ -600,11 +611,30 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
         translations = manifest[translations_key]
         tts_outputs = []
 
+        _resume_skipped = 0
         for i, trans in enumerate(translations):
             seg_id = trans["segment_id"]
             text = trans["translated_text"]
             budget_ms = trans["timing_budget_ms"]
             output_path = tts_dir / f"{seg_id}.wav"
+
+            # Segment-level resume: skip already completed segments
+            if seg_id in _existing_tts and not force_reprocess:
+                tts_outputs.append(_existing_tts[seg_id])
+                _resume_skipped += 1
+                if _resume_skipped == 1 or _resume_skipped == len(_existing_tts):
+                    logger.info("SKIP TTS [%d/%d] %s — already completed (resume)", i + 1, len(translations), seg_id)
+                continue
+
+            if _resume_skipped > 0 and _resume_skipped == len(_existing_tts):
+                logger.info("Resumed: skipped %d completed segments, processing remaining %d",
+                           _resume_skipped, len(translations) - _resume_skipped)
+                manifest["resume_info"] = {
+                    "total_segments": len(translations),
+                    "already_completed": _resume_skipped,
+                    "to_process": len(translations) - _resume_skipped,
+                    "resumed_at": _now_iso(),
+                }
 
             # V2: switch voice reference per speaker
             if diarize_enabled and len(speaker_refs) > 1:
@@ -753,7 +783,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
             except Exception as exc:
                 logger.warning("DNSMOS scoring failed for %s: %s", seg_id, exc)
 
-            tts_outputs.append({
+            _tts_entry = {
                 "segment_id": seg_id,
                 "audio_path": str(final_path),
                 "start_ms": trans["start_ms"],
@@ -770,7 +800,14 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 "tts_attempts": tts_attempts if isinstance(tts_attempts, int) else 1,
                 "rewrite_reason": trans.get("rewrite_reason"),
                 "dnsmos": dnsmos_score,
-            })
+            }
+            tts_outputs.append(_tts_entry)
+
+            # Incremental save: write partial TTS manifest every 5 segments
+            if (i + 1) % 5 == 0 or (i + 1) == len(translations):
+                with open(tts_manifest_path, "w") as f:
+                    json.dump(tts_outputs, f, indent=2, ensure_ascii=False)
+                save_manifest(manifest, manifest_path)
 
         engine.unload()
 
@@ -794,7 +831,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
 # =========================================================================
 
 
-def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_enabled: bool = False) -> dict:
+def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_enabled: bool = False, force_reprocess: bool = False) -> dict:
     """Phase 9 : Assembly — place TTS segments on timeline + loudnorm.
 
     V2: when demucs_enabled, mixes TTS with background audio (accompaniment stems).
@@ -808,11 +845,13 @@ def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_e
     mix_raw = mix_dir / f"mix_{target_lang}_raw.wav"
     mix_norm = mix_dir / f"mix_{target_lang}.wav"
 
-    if mix_norm.exists():
+    if mix_norm.exists() and not force_reprocess:
         logger.info("Mix already exists, skipping assembly.")
         update_stage(manifest, stage_key, StageStatus.COMPLETED)
         save_manifest(manifest, manifest_path)
         return manifest
+    elif force_reprocess and mix_norm.exists():
+        logger.info("Force reprocess: regenerating assembly")
 
     update_stage(manifest, stage_key, StageStatus.RUNNING)
     save_manifest(manifest, manifest_path)
@@ -991,6 +1030,7 @@ def run_pipeline(
     rewrite_endpoint: str | None = None,
     glossary_path: str | None = None,
     asr_engine: str = "whisperx",
+    force_reprocess: bool = False,
     target_langs: list[str] | None = None,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
@@ -1078,7 +1118,7 @@ def run_pipeline(
         # Phase 6 : Translation
         logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
         t_mt = time.time()
-        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary)
+        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary, force_reprocess=force_reprocess)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
 
         # Phase 7 : Rewrite (LLM constrained)
@@ -1090,12 +1130,12 @@ def run_pipeline(
         # Phase 8 : TTS
         logger.info("PHASE 8 — TTS (CosyVoice3) [%s]", lang)
         t_tts = time.time()
-        manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled)
+        manifest = run_tts(manifest, manifest_path, lang, tts_engine=tts_engine, diarize_enabled=diarize_enabled, force_reprocess=force_reprocess)
         logger.info("TTS [%s] took %.1fs", lang, time.time() - t_tts)
 
         # Phase 9 : Assembly
         logger.info("PHASE 9 — ASSEMBLY [%s]", lang)
-        manifest = run_assembly(manifest, manifest_path, lang, demucs_enabled=demucs_enabled)
+        manifest = run_assembly(manifest, manifest_path, lang, demucs_enabled=demucs_enabled, force_reprocess=force_reprocess)
 
         # Phase 10 : QC
         logger.info("PHASE 10 — QC [%s]", lang)
