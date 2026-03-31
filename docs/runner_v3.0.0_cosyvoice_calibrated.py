@@ -677,7 +677,6 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                     output_path=p1_path,
                     target_lang=target_lang,
                     speed=1.0,
-                    timing_budget_ms=budget_ms,
                 )
                 p1_ms = tts_result.duration_ms
                 tts_attempts = 1
@@ -685,7 +684,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                 # Collapse retry (same speed, same seed)
                 if p1_ms < budget_ms * 0.10 and budget_ms > 2000:
                     logger.warning("TTS P1 collapsed (%dms) — retrying", p1_ms)
-                    tts_result = engine.synthesize(text=text, output_path=p1_path, target_lang=target_lang, speed=1.0, timing_budget_ms=budget_ms)
+                    tts_result = engine.synthesize(text=text, output_path=p1_path, target_lang=target_lang, speed=1.0)
                     p1_ms = tts_result.duration_ms
 
                 # Check if P1 is close enough (within ±15% or speed adjustment < 1.05)
@@ -706,20 +705,12 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                     tts_result_ms = p1_ms
                     tts_speed_used = 1.0
 
-                elif hasattr(engine, 'supports_duration_control') and engine.supports_duration_control:
-                    # Duration control engine — skip P2 speed retry (engine controls duration via tokens)
-                    import shutil
-                    shutil.move(str(p1_path), str(output_path))
-                    tts_result_ms = p1_ms
-                    tts_speed_used = 1.0
-                    logger.info("TTS %s: duration control active, skip P2 (ratio %.2f)", seg_id, ratio)
-
                 else:
                     # P2: regenerate with speed constrained to [0.95, 1.05]
                     speed_p2 = max(0.95, min(1.05, ratio))
                     p2_path = tts_dir / f"{seg_id}_p2.wav"
                     logger.info("TTS P2 [%d/%d] %s (speed=%.3f, P1 was %dms / %dms)", i + 1, len(translations), seg_id, speed_p2, p1_ms, budget_ms)
-                    tts_result = engine.synthesize(text=text, output_path=p2_path, target_lang=target_lang, speed=speed_p2, timing_budget_ms=budget_ms)
+                    tts_result = engine.synthesize(text=text, output_path=p2_path, target_lang=target_lang, speed=speed_p2)
                     p2_ms = tts_result.duration_ms
                     tts_attempts = 2
 
@@ -738,17 +729,7 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                         tts_speed_used = 1.0
 
             # --- Time-stretch if needed ---
-            _has_duration_control = hasattr(engine, 'supports_duration_control') and engine.supports_duration_control
-            if _has_duration_control:
-                # Duration control active — skip stretch (delta is controlled by tokens)
-                stretch_ratio = 1.0
-                final_path = output_path
-                stretch_applied = False
-                slowdown_applied = False
-                delta_pct = abs(tts_result_ms - budget_ms) / budget_ms * 100 if budget_ms else 0
-                logger.info("TTS %s: duration control, skip stretch (delta %.1f%%)", seg_id, delta_pct)
-            else:
-                stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
+            stretch_ratio = compute_stretch_ratio(tts_result_ms, budget_ms)
             final_path = output_path
             stretch_applied = False
 
@@ -769,9 +750,8 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
                     )
 
             # --- Slow-down stretch if TTS is too short ---
-            if not _has_duration_control:
-                slowdown_applied = False
-            if not _has_duration_control and tts_result_ms < budget_ms * 0.85 and tts_result_ms > 0:
+            slowdown_applied = False
+            if tts_result_ms < budget_ms * 0.85 and tts_result_ms > 0:
                 slowdown_ratio = tts_result_ms / budget_ms
                 if slowdown_ratio >= MIN_SLOWDOWN_RATIO:
                     from src.media.rubberband import time_stretch as rb_stretch, MIN_SLOWDOWN_RATIO as RB_MIN

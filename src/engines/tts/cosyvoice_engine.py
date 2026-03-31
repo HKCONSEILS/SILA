@@ -172,6 +172,8 @@ class CosyVoiceEngine(TTSInterface):
         target_lang: str = "en",
         output_path: Path | None = None,
         speed: float = 1.0,
+        timing_budget_ms: float | None = None,
+        **kwargs,
     ) -> TTSResult:
         """Synthesize speech using cross-lingual voice cloning.
         
