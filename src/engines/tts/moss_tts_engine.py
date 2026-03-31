@@ -28,6 +28,14 @@ PIPELINE_SAMPLE_RATE = 48000
 class MossTTSEngine(TTSInterface):
     """MOSS-TTS with duration control via subprocess batch inference."""
 
+    @property
+    def supports_duration_control(self) -> bool:
+        return True
+
+    @property
+    def supports_speed_control(self) -> bool:
+        return False
+
     def __init__(self, **kwargs):
         self._voice_ref_path = None
         self._batch_segments = []

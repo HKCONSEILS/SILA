@@ -21,6 +21,17 @@ class TTSResult:
 
 
 class TTSInterface(ABC):
+
+    @property
+    def supports_duration_control(self) -> bool:
+        """True if engine accepts timing_budget_ms for precise duration."""
+        return False
+
+    @property
+    def supports_speed_control(self) -> bool:
+        """True if engine accepts speed parameter."""
+        return True
+
     """Interface abstraite pour le TTS. Voir MASTERPLAN.md §5.3."""
 
     @abstractmethod
