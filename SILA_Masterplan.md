@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.8.0
-**Date** : 2026-03-30
-**Statut** : V3 livrée — Produit
+**Version du document** : 1.9.0
+**Date** : 2026-03-31
+**Statut** : V3.1 — MOSS-TTS duration control
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -142,7 +142,8 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 | Traduction (alt. commerciale) | MADLAD-400 (Google) via CTranslate2 | Apache 2.0 | ~3 Go (int8 CPU) | 🔄 Si usage commercial |
 | Réécriture contrainte (V2) | Mistral Small 3.2 24B (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~15 Go | ✅ Retenu V2 |
 | Réécriture contrainte (fallback) | Ministral 3 8B Instruct (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~5 Go | ✅ Retenu V2 |
-| TTS / voice cloning (principal) | CosyVoice 3.0 (Fun-CosyVoice3-0.5B) | Apache 2.0 | ~4 Go | ✅ Verrouillé |
+| TTS / voice cloning (principal) | CosyVoice 3.0 (Fun-CosyVoice3-0.5B) | Apache 2.0 | ~4 Go | ✅ Verrouillé — défaut actuel |
+| TTS / voice cloning (duration control) | MOSS-TTS MossTTSLocal (1.7B) | Apache 2.0 | ~7 Go | ✅ Verrouillé — `--tts-engine moss` |
 | TTS / voice cloning (alternatif) | Qwen3-TTS 1.7B | Apache 2.0 | ~6 Go | ✅ Verrouillé |
 | TTS / voice cloning (challenger) | Voxtral TTS 4B (Mistral, mars 2026). 9 langues, clonage 2-3s, streaming ~100ms TTFA. ⚠️ Licence : poids open-weights mais voix de référence CC-BY-NC 4.0 (vérifier si usage avec voix propres lève la restriction). | Open-weights ⚠️ | ~8 Go | 🔄 À benchmarker |
 | Time-stretching | pyrubberband (wrapper librubberband) | MIT | 0 (CPU) | ✅ Verrouillé |
@@ -228,6 +229,7 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 | Triton Inference Server | Over-engineering V1-V2. vLLM/llama.cpp suffisent. |
 | RabbitMQ | Plus complexe que Redis pour notre cas. Celery + Redis suffit en V2. |
 | Kubernetes en V1-V2 | Over-engineering. Docker Compose suffit. |
+| Fish Audio S2 Pro | Fish Audio Research License (non-commerciale). Qualité SOTA mais disqualifié pour production. |
 | IndexTTS-2 (Bilibili) | Testé v3.0.0-alpha. Pas de duration control dans l’API `infer()` malgré la doc marketing. 0/5 segments dans budget ±15%, delta moyen -45% (trop court). Apache 2.0, zh/en/ja uniquement. |
 | Architecture microservices en V1 | Over-engineering. Fonctions modulaires + Celery suffisent. |
 
@@ -1269,6 +1271,9 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
 | Demucs chunking | Chunks 5 min, streaming disque, pas d’OOM sur 1h+ | ✅ v3.0.0-alpha |
 | IndexTTS-2 benchmark | Testé — pas de duration control API. 0/5 dans budget. Non viable. | ✅ v3.0.0-alpha (négatif) |
 | Vidéo 1h réelle | YouTube 62 min, 369 segments, ratio 1:1, 62% speech coverage | ✅ v3.0.0-alpha |
+| MOSS-TTS engine | `--tts-engine moss`, duration control tokens=N, 99.5% QC sur 1h | ✅ v3.1.0 |
+| TTS engine abstraction | TTSEngine base, supports_duration_control/speed_control | ✅ v3.1.0 |
+| CosyVoice params preserved | docs/cosyvoice_tuning_reference.md | ✅ v3.1.0 |
 | Lip-sync conditionnel | Uniquement segments face-caméra avec désync visible | ❌ Reporté V4 |
 | Détection émotions | Adaptation prosodie TTS selon émotion détectée | ❌ Reporté V4 |
 | Temporal | Orchestration durable, workflows complexes | ❌ Reporté V4 |
@@ -1296,6 +1301,8 @@ Accès : `http://192.168.1.228:8000/`
 | [mistralai](https://github.com/mistralai) | Écosystème Mistral complet : LLM (Small 3.x, Small 4, Ministral 3), audio (Voxtral ASR + TTS), code (Devstral). | Nouvelles versions pour réécriture (LLM), ASR (Voxtral Transcribe) et TTS (Voxtral TTS) |
 | [mistralai/Voxtral-Mini-4B-Realtime-2602](https://huggingface.co/mistralai/Voxtral-Mini-4B-Realtime-2602) | ASR streaming + batch, diarisation native, 13 langues, context biasing, Apache 2.0. Candidat remplacement WhisperX en V2. | Benchmark sur golden set SILA vs WhisperX vs Qwen3-ASR |
 | [mistralai/Voxtral-4B-TTS-2603](https://huggingface.co/mistralai/Voxtral-4B-TTS-2603) | TTS 4B, 9 langues, clonage 2-3s, streaming ~100ms TTFA, open-weights. Mars 2026. Challenger CosyVoice/Qwen3-TTS. | Benchmark sur golden set SILA. Clarifier licence (CC-BY-NC via voix de ref). |
+
+| [OpenMOSS/MOSS-TTS](https://github.com/OpenMOSS/MOSS-TTS) | TTS alternatif avec duration control. Releases, SGLang, GGUF. | Évaluer chaque release |
 
 ### 15.2 Modèles à surveiller (veille mensuelle)
 
@@ -1413,7 +1420,7 @@ Accès : `http://192.168.1.228:8000/`
 - **Conséquence** : Benchmark TTS V2 passe de 2 à 3 candidats. Engine stub créé, flag --tts-engine ajouté au CLI.
 
 ### ADR-007 : Philosophie qualité-first — P15, P16 (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : 3 tests bout en bout (test_001, test_002, test_003) montrent que forcer le TTS à speed >2.0× produit des collapses (audio dégénéré) ou des résultats inintelligibles. Le QC à 51.9% est atteint en sacrifiant la qualité audio. Un doubleur humain ne parle jamais à 250% de sa vitesse naturelle — il reformule pour que ça tienne.
 - **Décision** : Le TTS a un débit naturel non-négociable (~10 chars/s EN). On adapte le contenu au budget, pas la vitesse de parole. Speed TTS max 1.2× (pas 2.5×). Stretch max 1.10× (pas 1.25×). La réécriture LLM devient le composant central de la cascade de durée (P2 révisé). Tout segment dont la traduction dépasse max_chars doit être réécrit.
 - **Principes ajoutés** : P15 (Intelligibilité d'abord), P16 (Budget en caractères : `max_chars = (budget_ms/1000) × debit × 0.90`).
@@ -1421,7 +1428,7 @@ Accès : `http://192.168.1.228:8000/`
 - **Conséquence** : La réécriture passe de correctif optionnel (5/52 segments réécrits = 9.6%) à composant obligatoire pour tout segment hors budget. Le seuil inclut désormais les REVIEW_REQUIRED en plus des REWRITE_NEEDED.
 
 ### ADR-008 : Résultats post-Demucs — Segmentation et constantes (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : 7 commits (494eb47..17d10eb) ont implémenté Demucs, la segmentation phrase-aware, le rewrite adaptatif, et le logging TTS enrichi. Tests sur test_002 (conférence 52s, pas de musique) et test_003 (Zeste de Science 356s, avec musique).
 - **Résultats QC (segments dans budget ±15%)** :
 
@@ -1449,7 +1456,7 @@ Accès : `http://192.168.1.228:8000/`
 - **Conséquence** : V1 tagué à 80%/65% QC avec audio réel. L'amélioration vers 85%+ passe par un moteur TTS avec duration control natif (IndexTTS-2 prioritaire en V2). Le speed adaptatif (0.80-1.20) améliore le QC chiffré mais détruit la cohérence perceptive — contraint à [0.95-1.05] pour la V1 finale.
 
 ### ADR-010 : Résultats finaux V1 et leçons apprises (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : Pipeline V1 bout-en-bout (Phase 0→11) livré et validé par écoute subjective. Tag v1.0.0.
 - **Résultats QC finaux (segments dans budget ±15%)** :
 
@@ -1471,7 +1478,7 @@ Accès : `http://192.168.1.228:8000/`
 ---
 
 ### ADR-011 : Non-determinisme CosyVoice — seed ineffectif (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : 3 runs identiques de test_002 (meme code, meme prompt, meme speed=1.0, meme seed=42) produisent des QC de 40% a 80%. Un segment (seg_0001) genere 10189ms dans un run et 5240ms dans un autre — meme texte, memes parametres.
 - **Constat** : le parametre `seed` de CosyVoice 3.0 ne garantit pas la reproductibilite. Le modele LLM-based (flow matching + sampling) introduit du non-determinisme malgre le seed fixe. Ce comportement est probablement lie aux optimisations GPU (flash attention, cuDNN autotuning) qui ne sont pas deterministes par defaut.
 - **Impact** : le QC timing (+-15%) varie de +-40 points entre runs identiques. Les comparaisons A/B avec ecart < 15 points ne sont pas significatives. Seules les tendances fortes (silence vs audio, 20% vs 80%) sont fiables.
@@ -1486,7 +1493,7 @@ Accès : `http://192.168.1.228:8000/`
 ---
 
 ### ADR-012 : V2-alpha — Features qualité livrées (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : Sprint V2 intensif (2 nuits + sessions interactives). 6 features V2 livrées sur main en 48h.
 - **Features livrées** :
   - Multi-langues : `--target-langs en,es` → N MP4 en 1 run, tronc commun exécuté une seule fois
@@ -1502,7 +1509,7 @@ Accès : `http://192.168.1.228:8000/`
 ---
 
 ### ADR-013 : V2 livrée — Reprise par segment, FastAPI, vidéo longue validée (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : Sprint scale V2 — 3 chantiers livrés en une session autonome.
 - **Résultats** :
   - **Reprise par segment** : le manifeste est sauvegardé tous les 5 segments TTS. Un run interrompu reprend exactement là où il s’est arrêté. Run cached sur test_002 (5 segments) : 3.3s. Flag `--force-reprocess` pour ignorer le cache.
@@ -1518,7 +1525,7 @@ Accès : `http://192.168.1.228:8000/`
 ---
 
 ### ADR-014 : V3-alpha — Vidéo 1h, export multi-piste, IndexTTS-2 négatif (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : Sprint V3 — 4 chantiers (IndexTTS-2, vidéo 1h, export multi-piste, monitoring metrics).
 - **Résultats** :
   - **IndexTTS-2** : installé et benchmarké. Le “duration control natif” annoncé n’est PAS exposé dans l’API `infer()`. 0/5 segments dans le budget ±15%, delta moyen -45% (génère systématiquement trop court). Non viable comme remplacement CosyVoice. Ajouté aux briques rejetées.
@@ -1534,7 +1541,7 @@ Accès : `http://192.168.1.228:8000/`
 ---
 
 ### ADR-015 : V3 livrée — UI web, architecture finale (mars 2026)
-- **Date** : 2026-03-30
+- **Date** : 2026-03-31
 - **Contexte** : Sprint UI V3 — 3 chantiers livrés (dashboard, review segmentaire, upload).
 - **Résultats** :
   - **Dashboard** (`/`) : liste des jobs avec badge statut, polling 10s.
@@ -1551,6 +1558,27 @@ Accès : `http://192.168.1.228:8000/`
   - `v2.0.0` — Production interne (reprise segment, FastAPI, 30 min)
   - `v3.0.0-alpha` — Vidéo 1h + fond sonore (Demucs chunking, multi-piste, metrics)
   - `v3.0.0` — Produit (UI web : dashboard, review, upload)
+
+---
+
+### ADR-016 : MOSS-TTS — Duration control et promotion engine alternatif (mars 2026)
+- **Date** : 2026-03-31
+- **Contexte** : QC timing plafonnait à 48.5% (ADR-014). MOSS-TTS (OpenMOSS, Apache 2.0, février 2026) identifié comme premier modèle avec duration control token-level (12.5 Hz, 1 token = 80ms).
+- **Benchmark** :
+  - Smoke test : delta 1% sur cibles 3s/5s/8s
+  - MossTTSLocal 1.7B retenu (speaker similarity 73%, VRAM 6.65 Go)
+  - Bug critique fixé : `timing_budget_ms` non passé par le runner. Speed retry P2 et pyrubberband désactivés via `supports_duration_control`.
+- **Résultats finaux (MOSS v2 vs CosyVoice)** :
+  - test_002 (52s) : QC 80%→100%, DNSMOS 2.97→3.15
+  - test_003 (356s) : QC 41%→100%, DNSMOS 3.05→3.12
+  - test_007 (62min) : QC 48.5%→99.5%, DNSMOS 2.84→3.25, coverage 62%→95%, gaps 196→3
+- **Trade-off** : ratio pipeline 6:1 vs 1:1 CosyVoice. Optimisation prévue (serveur HTTP persistant, SGLang, GGUF).
+- **Décisions** :
+  - MOSS-TTS intégré comme engine alternatif (`--tts-engine moss`), CosyVoice reste défaut
+  - Paramètres CosyVoice calibrés préservés (`docs/cosyvoice_tuning_reference.md`)
+  - Architecture : `TTSEngine` base class, `supports_duration_control`, `supports_speed_control`
+  - Fish Audio S2 Pro ajouté aux briques rejetées (licence non-commerciale)
+- **Principe P17** : Profils TTS par engine — chaque moteur a ses propres paramètres calibrés. Le runner adapte le flow via les propriétés de l’engine.
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
