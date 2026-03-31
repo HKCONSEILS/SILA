@@ -89,7 +89,7 @@ def _setup_logging(verbose: bool) -> None:
 @click.option(
     "--tts-engine",
     default="cosyvoice",
-    type=click.Choice(["cosyvoice", "voxtral"]),
+    type=click.Choice(["cosyvoice", "voxtral", "moss"]),
     help="Moteur TTS (defaut: cosyvoice).",
 )
 def cli(

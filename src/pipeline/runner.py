@@ -512,6 +512,8 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
     """Phase 8 : TTS via CosyVoice3 ou Voxtral."""
     if tts_engine == "voxtral":
         from src.engines.tts.voxtral_engine import VoxtralEngine as EngineClass
+    elif tts_engine == "moss":
+        from src.engines.tts.moss_tts_engine import MossTTSEngine as EngineClass
     else:
         from src.engines.tts.cosyvoice_engine import CosyVoiceEngine as EngineClass
 
@@ -548,6 +550,8 @@ def run_tts(manifest: dict, manifest_path: Path, target_lang: str, tts_engine: s
         if tts_engine == "voxtral":
             model_path = Path(models_dir) / "voxtral-tts-4b"
             engine = EngineClass(model_dir=model_path)
+        elif tts_engine == "moss":
+            engine = EngineClass()
         else:
             engine = EngineClass(model_dir=model_path)
 
