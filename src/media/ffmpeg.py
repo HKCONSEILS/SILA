@@ -155,7 +155,7 @@ def loudnorm(
     measure_cmd = [
         "ffmpeg", "-y", "-hide_banner", "-loglevel", "info",
         "-i", str(input_path),
-        "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11:print_format=json",
+        "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:print_format=json",
         "-f", "null", "-",
     ]
     result = subprocess.run(measure_cmd, capture_output=True, text=True, check=False)
@@ -172,7 +172,7 @@ def loudnorm(
             return output_path
         # Pass 2: correct with measured values
         af = (
-            f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11:"
+            f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11:"
             f"measured_I={stats.get('input_i', -24)}:"
             f"measured_LRA={stats.get('input_lra', 7)}:"
             f"measured_TP={stats.get('input_tp', -2)}:"
@@ -189,7 +189,7 @@ def loudnorm(
         # Fallback: single pass
         logger.warning("Loudnorm: could not parse stats, falling back to 1-pass")
         _run_ffmpeg(
-            ["-i", str(input_path), "-af", f"loudnorm=I={target_lufs}:TP=-1.0:LRA=11",
+            ["-i", str(input_path), "-af", f"loudnorm=I={target_lufs}:TP=-1.5:LRA=11",
              "-ar", "48000", "-ac", "1", str(output_path)],
             description="loudnorm-1pass",
         )
