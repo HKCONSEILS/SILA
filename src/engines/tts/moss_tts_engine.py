@@ -261,7 +261,7 @@ class MossTTSEngine(TTSInterface):
                 cmd.extend(['--reference', self._voice_ref_path])
 
             env = os.environ.copy()
-            env['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '2')
+            env['CUDA_VISIBLE_DEVICES'] = os.environ.get('CUDA_VISIBLE_DEVICES', '1')
 
             result = subprocess.run(cmd, capture_output=True, text=True,
                                     timeout=300, env=env)
