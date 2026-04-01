@@ -1,7 +1,7 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.10.0
+**Version du document** : 1.10.1
 **Date** : 2026-04-01
 **Statut** : V3.1 — Benchmark HeyGen, serveur MOSS-TTS, test_008
 **Auteur** : Comité d'architecture (4 experts)
@@ -106,7 +106,7 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | P15 | **Intelligibilité d'abord** | La qualité d'écoute prime sur le respect du timing. Un segment compréhensible à speed=1.0 qui déborde de 20% vaut mieux qu'un segment calé au timing mais inintelligible à speed=2.5×. Le speed TTS ne dépasse jamais 1.2×. Le time-stretch ne dépasse jamais 1.10×. Au-delà, c'est le texte qui doit être raccourci, pas la voix accélérée. |
 | P16 | **Budget en caractères** | Chaque segment porte un `max_chars` calculé depuis le `timing_budget_ms` et le débit naturel du TTS (~10 chars/s pour l'anglais, ~12 chars/s pour le français). La traduction et la réécriture doivent respecter ce budget. Formule : `max_chars = (timing_budget_ms / 1000) × debit_chars_s × 0.90` (marge 10%). |
 | P17 | **Profils TTS par engine** | Chaque moteur TTS a ses propres paramètres calibrés. Le runner adapte le flow via les propriétés de l'engine (`supports_duration_control`, `supports_speed_control`). Les paramètres CosyVoice ne s'appliquent pas à MOSS et vice versa. |
-| P18 | **Qualité perçue ≠ qualité mesurée** | Les métriques objectives (DNSMOS, loudness, energy CoV) ne corrèlent pas toujours avec la qualité perçue. La speech coverage, la dynamique (LRA), et le pitch matching ont un impact perceptif supérieur au DNSMOS. L'écoute humaine reste le juge final, les métriques sont des indicateurs, pas des verdicts. |
+| P18 | **Qualité perçue ≠ qualité mesurée** | Les métriques objectives (DNSMOS, loudness, energy CoV) ne corrèlent pas toujours avec la qualité perçue. La speech coverage, la dynamique (LRA), et le pitch matching ont un impact perceptif supérieur au DNSMOS. L'écoute humaine reste le juge final, les métriques sont des indicateurs, pas des verdicts. Corollaire : les mesures F0 (pitch) ne sont fiables que sur des stems vocaux isolés (Demucs), pas sur l'audio mixé. L'algorithme pyin est sujet à l'octave doubling — toujours croiser avec autocorrélation et plage contrainte. Outil : `bench/f0_analysis/measure_f0.py`. |
 
 ### 2.2 Séparations conceptuelles fondamentales
 
@@ -1294,7 +1294,7 @@ Accès : `http://192.168.1.228:8000/`
 |---|---|---|---|---|
 | Coverage gap | 73% speech coverage (vs 93% HeyGen) | Vérifier Demucs activé, revoir assembly/crossfade, combler les inter-segments | Fort | Moyen |
 | Dynamique écrasée | LRA 3.0 (vs 16.7 HeyGen), voix plate | Normaliser sur audio mixé final, pas segment par segment | Fort | Léger |
-| Pitch matching | F0 132 Hz vs 105 Hz source | Améliorer voice reference, explorer pitch target MOSS-TTS | Moyen | Moyen |
+| Pitch matching | F0 corrigé : SILA +1.0 à +1.6 dt, HeyGen -0.4 à -1.7 dt. Les deux < 2 dt sur test_002. | Résolu par diagnostic : les deux engines sont dans la zone acceptable. Outil `measure_f0.py` créé. | Faible (résolu) | Fait |
 | Captions intégrées | SRT généré mais pas dans MP4 | FFmpeg `-c:s mov_text` | Léger | Léger |
 | Mode Quick/Advanced UI | UX HeyGen inspiré | 2 onglets dans UI React | Moyen | Léger |
 | Voice enhancement | Post-traitement denoising | DNSMOS-guided ou FFmpeg highpass+compressor | Léger | Léger |
@@ -1358,10 +1358,11 @@ Accès : `http://192.168.1.228:8000/`
 
 | Test | Durée | Segments | Résultats | Notes |
 |---|---|---|---|---|
-| test_002 | 52s | ~10 | CosyVoice QC ~80%, MOSS v2 QC 100%, DNSMOS 3.15. HeyGen DNSMOS 2.89, coverage 93.5%, F0 105 Hz, LRA 16.7 | Conférence FR→EN. Benchmark 3 engines (v3.1.0). |
+| test_002 | 52s | ~10 | CosyVoice QC ~80%, MOSS v2 QC 100%, DNSMOS 3.15. HeyGen DNSMOS 2.89, coverage 93.5%, LRA 16.7. F0 source 125 Hz, MOSS +1.0 dt, HeyGen -1.7 dt | Conférence FR→EN. Benchmark 3 engines (v3.1.0). F0 mesuré sur stems Demucs. |
 | test_003 | 356s | ~40 | MOSS v2 QC 100%, DNSMOS 3.12 | Zeste de Science, avec musique. |
 | test_007 | 62 min | 369 | MOSS v2 QC 99.5%, DNSMOS 3.25, coverage 95% | YouTube 1h, cas d'usage réel. |
 | test_008 | 5 min | 31 | MOSS v2 QC 94%, DNSMOS 3.23 | Extrait test_007 (min 05:00-10:00). Remplace test_002 comme test rapide. |
+| test_009 | 55s | 6 | MOSS v3 QC 83%, DNSMOS 3.25, coverage 92.9%, audit 8/8 PASS. F0 source 145 Hz (corrigé octave doubling) | Extrait test_007 (min 20:00-20:55). Quick validation. F0 sur stems Demucs. |
 
 ---
 
@@ -1624,17 +1625,18 @@ Accès : `http://192.168.1.228:8000/`
   - Speech coverage : HeyGen (93.5%) > CosyVoice (75.7%) > MOSS (73.9%)
   - Energy CoV : MOSS (16.7%) > CosyVoice (23.4%) > HeyGen (36.7%)
   - Speaker similarity : CosyVoice (0.714) > MOSS = HeyGen (0.686)
-  - F0 moyen : HeyGen (105 Hz, plus proche du speaker source) > MOSS (132 Hz) > CosyVoice (143 Hz)
+  - F0 moyen (corrigé, stems Demucs + octave fix) : source 125 Hz. MOSS 133 Hz (+1.0 dt, le plus fidèle). CosyVoice 134 Hz (+1.2 dt). HeyGen 114 Hz (-1.7 dt, abaisse artificiellement)
   - LRA : HeyGen (16.7, dynamique naturelle) > CosyVoice (6.4) > MOSS (3.0, trop compressé)
 - **Écoute humaine** : HeyGen perçu comme plus agréable malgré des métriques audio inférieures. Pas de sauts, timbre uniforme, voix naturelle. SILA MOSS v2 : meilleur signal mais trous entre segments, voix trop plate, pitch décalé.
 - **Diagnostic — 3 axes d’amélioration identifiés** :
   1. **Coverage gap** (73% → >90%) : le duration control fonctionne segment par segment, mais l’assembly laisse des trous. Problème d’assembly et crossfade, pas de TTS. Le fond sonore Demucs comble partiellement (98% coverage avec Demucs sur test_007 vs 73% sur test_002). Vérifier que Demucs était actif sur le run test_002.
   2. **Dynamique écrasée** (LRA 3.0 → >8.0) : la normalisation loudnorm segment par segment écrase la dynamique naturelle. Solution : normaliser sur l’audio final mixé, pas segment par segment. Ou utiliser un loudnorm moins agressif (target -16 LUFS mais avec LRA min plus élevé).
-  3. **Pitch matching** (F0 132 Hz → plus proche du source) : MOSS-TTS produit un F0 plus haut que la voix source. Le voice reference peut être mieux sélectionné, ou un paramètre de pitch target peut être ajouté.
-- **Positionnement** : SILA bat HeyGen sur la qualité signal (DNSMOS), la conformité loudness, et le true peak. HeyGen bat SILA sur la coverage, la dynamique, et le pitch matching. Les 3 axes identifiés sont des ajustements de post-production et calibrage, pas des changements de modèle.
+  3. **Pitch matching** (corrigé ADR-019) : après correction octave doubling et mesure sur stems Demucs, SILA MOSS est à +1.0 demi-ton de la source (test_002) et HeyGen à -1.7 demi-ton. Les deux sont dans la zone acceptable (< 2 dt). Le diagnostic initial (F0 132 Hz vs 105 Hz) était biaisé par le fond sonore sur l'audio mixé.
+- **Positionnement** : SILA bat HeyGen sur la qualité signal (DNSMOS), la conformité loudness, le true peak, et la fidélité pitch (+1.0 dt vs -1.7 dt). HeyGen bat SILA sur la coverage (93% vs 76% sur contenu sparse) et la dynamique (LRA 16.7 vs 5.6). Les axes restants sont des ajustements de post-production (coverage, dynamique), pas des changements de modèle.
 - **Pricing HeyGen** : $2.25/min via API. 1h de vidéo = $135/langue. SILA = coût compute local uniquement. ROI positif après quelques dizaines de vidéos.
 - **Décision** : garder les 3 axes comme priorités V3.2. Refaire le benchmark HeyGen après corrections (2 crédits gratuits restants).
 - **Principe P18** : Qualité perçue ≠ qualité mesurée — les métriques sont des indicateurs, pas des verdicts. L’écoute humaine reste le juge final.
+- **Mesure F0 corrigée** (voir ADR-019) : les mesures initiales sur audio brut étaient polluées par le fond sonore (test_009 source mesuré à 243 Hz au lieu de 145 Hz). Correction : analyse sur stems Demucs + algorithme anti-octave-doubling (pyin multi-range + autocorrélation). Outil : `bench/f0_analysis/measure_f0.py`.
 
 ---
 
@@ -1650,6 +1652,22 @@ Accès : `http://192.168.1.228:8000/`
 - **test_008** : extrait 5 min de test_007 (YouTube, minutes 05:00-10:00), 31 segments. Remplace test_002 comme test rapide représentatif du contenu cible.
 - **Ratio pipeline actuel** : ~3.5:1 (vs 6:1 avant serveur HTTP, vs 1:1 CosyVoice)
 - **Leviers d’optimisation restants** : GGUF quantisé (2-3× estimé), SGLang backend (2-3× estimé), MossTTSDelay 8B (inconnu)
+
+---
+
+### ADR-019 : Mesure F0 — Octave doubling et fiabilité (avril 2026)
+- **Date** : 2026-04-01
+- **Contexte** : Les mesures F0 automatiques (librosa pyin) sur l’audio mixé donnaient des résultats erronés. test_009 source (voix masculine ~145 Hz) mesuré à 243 Hz sur audio brut, à 259 Hz sur stems Demucs sans correction — le double de la vraie fondamentale. Cause : octave doubling, un artefact classique de pyin où le 2ème harmonique est détecté au lieu de la fondamentale.
+- **Impact** : L’analyse comparative HeyGen vs SILA avait conclu à tort que la source était "une voix féminine" et que SILA avait un "biais grave". En réalité, le locuteur est masculin (~145 Hz), et les deux engines sont dans la zone acceptable (< 2 demi-tons de delta sur test_002).
+- **Correction** : Outil `bench/f0_analysis/measure_f0.py` avec triple vérification :
+  1. pyin plage large [50-400 Hz] — détection initiale
+  2. pyin plage basse [50-200 Hz] — vérification masculine
+  3. Autocorrélation — estimation indépendante robuste à l’octave doubling
+  4. Si ratio wide/low entre 1.8-2.2 → octave doubling détecté → corriger
+- **Résultats corrigés** :
+  - test_002 : source 125 Hz, MOSS +1.0 dt, CosyVoice +1.2 dt, HeyGen -1.7 dt (inchangé, pas d’octave error)
+  - test_009 : source **145 Hz** (pas 243 Hz), MOSS ~159 Hz (+1.6 dt), HeyGen ~142 Hz (-0.4 dt)
+- **Principe retenu** : ne jamais mesurer le F0 sur l’audio mixé. Toujours séparer la voix (Demucs) avant mesure. Croiser pyin avec autocorrélation. Documenter les raw measurements pour audit.
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
