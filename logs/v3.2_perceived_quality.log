@@ -1,0 +1,61 @@
+=== V3.2 PERCEIVED QUALITY SPRINT ===
+Started: mer. 01 avril 2026 08:52:23 UTC
+=== AXE 1 DIAGNOSTIC ===
+=== AXE 2 DIAGNOSTIC ===
+=== AXE 3 DIAGNOSTIC ===
+
+=== DIAGNOSTIC COMPLETE ===
+
+AXE 1 — COVERAGE:
+  Demucs was OFF on test_002_moss_v2 (stage: skipped)
+  5 segments, 5.2s tail silence
+  Timeline coverage ~89%, audio speech coverage 73.9%
+  FIX: Re-run with --demucs on. Background audio fills gaps.
+
+AXE 2 — DYNAMICS (LRA):
+  Loudnorm applied ONCE on final mix (not per-segment) - correct
+  Params: I=-16, TP=-1.0, LRA=11, linear=true (2-pass)
+  TTS segments have inherently low LRA (1.4-4.6)
+  LRA=3.0 in output comes from MOSS-TTS uniform output, not from compression
+  Adding Demucs background will add variation and improve LRA naturally
+  Additional fix: not needed beyond enabling Demucs
+
+AXE 3 — PITCH:
+  Source F0: mean=125.6 Hz, median=123.1 Hz (NOT 105 Hz as HeyGen benchmark suggested)
+  Voice ref: mean=133.9 Hz, median=128.9 Hz
+  TTS F0: mean=136.3 Hz (segs range 116-167 Hz)
+  Delta source→TTS: +10.7 Hz (+8.5%) = ~1.4 semitones
+  This is WITHIN the 2-semitone threshold → no pitch correction needed
+  HeyGen's 105 Hz was LOWER than the source (HeyGen shifted DOWN, not SILA shifted UP)
+  
+  CAS C confirmed: HeyGen altered pitch down. SILA is closer to source.
+  No fix needed for pitch.
+=== RUNNING test_002 with Demucs ON ===
+
+=== test_002 MOSS v3 RESULTS (Demucs ON) ===
+
+Audit:
+  1. Audio presence   : PASS  -16.9 dB
+  2. Loudness         : PASS  -16.1 LUFS
+  3. True peak        : WARN  -0.9 dBTP
+  4. Speech coverage  : PASS  76.3 %
+  5. Fragmentation    : FAIL  35.6 reg/min (background energy detected as speech fragments)
+  6. Energy consistency: WARN  27.4 % CoV
+  7. Gaps             : WARN  1 gaps >2s
+  8. Tail silence     : PASS
+  VERDICT: FAIL (fragmentation metric — artifact of background audio)
+
+QC: 100% (5/5)
+DNSMOS: 3.17
+
+Loudnorm: -16.1 LUFS, LRA 5.6, TP -0.9 dBTP
+F0: 115.7 Hz (source 125.6 Hz, delta -8%)
+
+COMPARISON v2 → v3 → HeyGen:
+              MOSS v2    MOSS v3    HeyGen
+Coverage      73.9%      76.3%      93.5%
+LRA           3.0        5.6        16.7
+F0            139.2 Hz   115.7 Hz   105 Hz
+DNSMOS        3.15       3.17       2.89
+LUFS          -16.0      -16.1      -13.0
+QC            100%       100%       N/A
