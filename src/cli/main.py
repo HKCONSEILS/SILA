@@ -86,6 +86,8 @@ def _setup_logging(verbose: bool) -> None:
     help="Ignore cache and reprocess all segments (debug).")
 @click.option("--multitrack", is_flag=True, default=False,
     help="Export separate audio tracks (voice, background, mix).")
+@click.option("--captions", is_flag=True, default=False,
+    help="Embed SRT subtitles into output MP4 (soft captions, mov_text).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -111,6 +113,7 @@ def cli(
     asr_engine: str,
     force_reprocess: bool,
     multitrack: bool,
+    captions: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -139,6 +142,8 @@ def cli(
             console.print(f"  Demucs: {demucs.upper()}")
         if diarize:
             console.print("  Diarize: ENABLED")
+        if captions:
+            console.print("  Captions: ENABLED (SRT embedded)")
         if rewrite_endpoint:
             console.print(f"  Rewrite endpoint: {rewrite_endpoint}")
         if glossary:
@@ -160,6 +165,7 @@ def cli(
             asr_engine=asr_engine,
             force_reprocess=force_reprocess,
             multitrack=multitrack,
+            captions=captions,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
