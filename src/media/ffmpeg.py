@@ -271,3 +271,41 @@ def remux_multitrack(
     _run_ffmpeg(cmd, description="remux_multitrack")
     logger.info("Multitrack remuxed: %s (%d audio tracks, lang=%s)", output_path, n_audio, target_lang)
     return output_path
+
+
+def remux_with_captions(
+    video_path: Path,
+    audio_path: Path,
+    srt_path: Path,
+    output_path: Path,
+    target_lang: str = "en",
+) -> Path:
+    """Remux video + audio + SRT captions into MP4.
+
+    Embeds SRT as mov_text subtitle track for soft subtitles.
+    Readable in VLC, mpv, and most modern players.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    _run_ffmpeg(
+        [
+            "-i", str(video_path),
+            "-i", str(audio_path),
+            "-i", str(srt_path),
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
+            "-ar", "48000",
+            "-c:s", "mov_text",
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-map", "2:s:0",
+            "-metadata:s:a:0", f"language={target_lang}",
+            "-metadata:s:s:0", f"language={target_lang}",
+            "-movflags", "+faststart",
+            "-shortest",
+            str(output_path),
+        ],
+        description="remux_with_captions",
+    )
+    logger.info("Remuxed with captions: %s (lang=%s)", output_path, target_lang)
+    return output_path

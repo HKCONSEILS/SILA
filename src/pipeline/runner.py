@@ -26,7 +26,7 @@ from src.core.manifest import (
 from src.core.models import Segment, StageStatus
 from src.core.segment import build_segments_from_words
 from src.core.timing import compute_stretch_ratio, calc_max_chars, classify_timing_fit_text, MAX_SPEED_RATIO, MIN_SLOWDOWN_RATIO
-from src.media.ffmpeg import extract_audio, loudnorm, probe_video, remux
+from src.media.ffmpeg import extract_audio, loudnorm, probe_video, remux, remux_with_captions
 from src.media.srt import generate_srt
 
 logger = logging.getLogger(__name__)
@@ -997,7 +997,7 @@ def run_qc(manifest: dict, manifest_path: Path, target_lang: str) -> dict:
 # =========================================================================
 
 
-def run_export(manifest: dict, manifest_path: Path, target_lang: str, multitrack: bool = False) -> dict:
+def run_export(manifest: dict, manifest_path: Path, target_lang: str, multitrack: bool = False, captions: bool = False) -> dict:
     """Phase 11 : Export — SRT + remux MP4. V3: optional multi-track export."""
     project_dir = manifest_path.parent
     stage_key = f"export_{target_lang}"
@@ -1023,7 +1023,14 @@ def run_export(manifest: dict, manifest_path: Path, target_lang: str, multitrack
         mix_audio = project_dir / "mix" / f"mix_{target_lang}.wav"
         output_video = exports_dir / f"output_{target_lang}.mp4"
 
-        remux(source_video, mix_audio, output_video, target_lang=target_lang)
+        # Remux: with or without embedded captions
+        if captions and srt_path.exists():
+            remux_with_captions(source_video, mix_audio, srt_path, output_video, target_lang=target_lang)
+            logger.info("Captions embedded: %s", srt_path)
+        else:
+            remux(source_video, mix_audio, output_video, target_lang=target_lang)
+            if captions and not srt_path.exists():
+                logger.warning("--captions requested but SRT not found: %s", srt_path)
 
         # V3: Multi-track export (separate voice + background stems)
         if multitrack:
@@ -1094,6 +1101,7 @@ def run_pipeline(
     asr_engine: str = "whisperx",
     force_reprocess: bool = False,
     multitrack: bool = False,
+    captions: bool = False,
     job_id: str | None = None,
     target_langs: list[str] | None = None,
 ) -> dict:
@@ -1265,7 +1273,7 @@ def run_pipeline(
 
         # Phase 11 : Export
         logger.info("PHASE 11 — EXPORT [%s]", lang)
-        manifest = run_export(manifest, manifest_path, lang, multitrack=multitrack)
+        manifest = run_export(manifest, manifest_path, lang, multitrack=multitrack, captions=captions)
 
     total_time = time.time() - t0
     manifest["metrics"]["total_processing_time_s"] = round(total_time, 1)
