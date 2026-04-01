@@ -1,0 +1,15 @@
+[Unit]
+Description=MOSS-TTS Inference Server (port 8082)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/sila/bench/MOSS-TTS
+Environment=CUDA_VISIBLE_DEVICES=0
+ExecStart=/opt/sila/bench/moss-tts-venv/bin/python /opt/sila/bench/moss_tts_server.py
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
