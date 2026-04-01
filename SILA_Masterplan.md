@@ -1,9 +1,9 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.9.0
-**Date** : 2026-03-31
-**Statut** : V3.1 — MOSS-TTS duration control
+**Version du document** : 1.10.0
+**Date** : 2026-04-01
+**Statut** : V3.1 — Benchmark HeyGen, serveur MOSS-TTS, test_008
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
 
@@ -105,6 +105,8 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | P14 | **Vidéo source intouchée** | La piste vidéo n'est jamais réencodée avant le remux final. |
 | P15 | **Intelligibilité d'abord** | La qualité d'écoute prime sur le respect du timing. Un segment compréhensible à speed=1.0 qui déborde de 20% vaut mieux qu'un segment calé au timing mais inintelligible à speed=2.5×. Le speed TTS ne dépasse jamais 1.2×. Le time-stretch ne dépasse jamais 1.10×. Au-delà, c'est le texte qui doit être raccourci, pas la voix accélérée. |
 | P16 | **Budget en caractères** | Chaque segment porte un `max_chars` calculé depuis le `timing_budget_ms` et le débit naturel du TTS (~10 chars/s pour l'anglais, ~12 chars/s pour le français). La traduction et la réécriture doivent respecter ce budget. Formule : `max_chars = (timing_budget_ms / 1000) × debit_chars_s × 0.90` (marge 10%). |
+| P17 | **Profils TTS par engine** | Chaque moteur TTS a ses propres paramètres calibrés. Le runner adapte le flow via les propriétés de l'engine (`supports_duration_control`, `supports_speed_control`). Les paramètres CosyVoice ne s'appliquent pas à MOSS et vice versa. |
+| P18 | **Qualité perçue ≠ qualité mesurée** | Les métriques objectives (DNSMOS, loudness, energy CoV) ne corrèlent pas toujours avec la qualité perçue. La speech coverage, la dynamique (LRA), et le pitch matching ont un impact perceptif supérieur au DNSMOS. L'écoute humaine reste le juge final, les métriques sont des indicateurs, pas des verdicts. |
 
 ### 2.2 Séparations conceptuelles fondamentales
 
@@ -229,7 +231,7 @@ Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement
 | Triton Inference Server | Over-engineering V1-V2. vLLM/llama.cpp suffisent. |
 | RabbitMQ | Plus complexe que Redis pour notre cas. Celery + Redis suffit en V2. |
 | Kubernetes en V1-V2 | Over-engineering. Docker Compose suffit. |
-| Fish Audio S2 Pro | Fish Audio Research License (non-commerciale). Qualité SOTA mais disqualifié pour production. |
+| Fish Audio S2 Pro | Fish Audio Research License (non-commerciale). SOTA qualité, 80+ langues, 4.4B params. Disqualifié pour production self-hosted. |
 | IndexTTS-2 (Bilibili) | Testé v3.0.0-alpha. Pas de duration control dans l’API `infer()` malgré la doc marketing. 0/5 segments dans budget ±15%, delta moyen -45% (trop court). Apache 2.0, zh/en/ja uniquement. |
 | Architecture microservices en V1 | Over-engineering. Fonctions modulaires + Celery suffisent. |
 
@@ -1279,9 +1281,23 @@ Validé sur test_005 (30 min, 172 segments, 89 min pipeline, 7.5 Go RAM, QC 48.8
 | Temporal | Orchestration durable, workflows complexes | ❌ Reporté V4 |
 | S3 / MinIO | Stockage objet scalable | ❌ Reporté V4 |
 | Auto-routing TTS | Choix du meilleur moteur par langue/speaker/contenu | ❌ Reporté V4 |
+| Serveur MOSS-TTS HTTP | Port 8082, systemd `moss-tts-server`, speedup 1.68× | ✅ v3.1.0 |
+| test_008 (5 min YouTube) | Extrait test_007 (min 05:00-10:00), 31 segments, remplace test_002 comme test rapide | ✅ v3.1.0 |
+| Benchmark HeyGen | Comparatif 3 engines sur test_002, 3 axes d'amélioration identifiés | ✅ v3.1.0 |
 
 **V3 livrée** : tag `v3.0.0` (2026-03-30). UI web complète (dashboard, review, upload), pipeline 1h validé, Demucs chunking, multi-piste, WebSocket temps réel.
 Accès : `http://192.168.1.228:8000/`
+
+### 14.4 V3.2 — "Qualité perçue" (priorité post-benchmark HeyGen)
+
+| Axe | Problème | Solution proposée | Impact | Effort |
+|---|---|---|---|---|
+| Coverage gap | 73% speech coverage (vs 93% HeyGen) | Vérifier Demucs activé, revoir assembly/crossfade, combler les inter-segments | Fort | Moyen |
+| Dynamique écrasée | LRA 3.0 (vs 16.7 HeyGen), voix plate | Normaliser sur audio mixé final, pas segment par segment | Fort | Léger |
+| Pitch matching | F0 132 Hz vs 105 Hz source | Améliorer voice reference, explorer pitch target MOSS-TTS | Moyen | Moyen |
+| Captions intégrées | SRT généré mais pas dans MP4 | FFmpeg `-c:s mov_text` | Léger | Léger |
+| Mode Quick/Advanced UI | UX HeyGen inspiré | 2 onglets dans UI React | Moyen | Léger |
+| Voice enhancement | Post-traitement denoising | DNSMOS-guided ou FFmpeg highpass+compressor | Léger | Léger |
 
 ---
 
@@ -1331,6 +1347,21 @@ Accès : `http://192.168.1.228:8000/`
 | TTS | SEED-TTS-Eval, CV3-Eval | CER, speaker similarity, MOS |
 | Audio qualité | UTMOS, DNSMOS, PESQ | MOS estimé |
 | Diarisation | AMI, CALLHOME, DIHARD | DER |
+
+### 15.4 Concurrents et benchmarks internes
+
+| Concurrent | Type | Pricing | Benchmark SILA | Date |
+|---|---|---|---|---|
+| HeyGen | SaaS | $2.25/min API, $29-149/mois plans | SILA bat en DNSMOS (+0.27) et loudness. HeyGen bat en coverage (+20pt) et dynamique | 2026-04-01 |
+
+**Tests de référence :**
+
+| Test | Durée | Segments | Résultats | Notes |
+|---|---|---|---|---|
+| test_002 | 52s | ~10 | CosyVoice QC ~80%, MOSS v2 QC 100%, DNSMOS 3.15. HeyGen DNSMOS 2.89, coverage 93.5%, F0 105 Hz, LRA 16.7 | Conférence FR→EN. Benchmark 3 engines (v3.1.0). |
+| test_003 | 356s | ~40 | MOSS v2 QC 100%, DNSMOS 3.12 | Zeste de Science, avec musique. |
+| test_007 | 62 min | 369 | MOSS v2 QC 99.5%, DNSMOS 3.25, coverage 95% | YouTube 1h, cas d'usage réel. |
+| test_008 | 5 min | 31 | MOSS v2 QC 94%, DNSMOS 3.23 | Extrait test_007 (min 05:00-10:00). Remplace test_002 comme test rapide. |
 
 ---
 
@@ -1579,6 +1610,46 @@ Accès : `http://192.168.1.228:8000/`
   - Architecture : `TTSEngine` base class, `supports_duration_control`, `supports_speed_control`
   - Fish Audio S2 Pro ajouté aux briques rejetées (licence non-commerciale)
 - **Principe P17** : Profils TTS par engine — chaque moteur a ses propres paramètres calibrés. Le runner adapte le flow via les propriétés de l’engine.
+
+---
+
+### ADR-017 : Benchmark HeyGen et axes d’amélioration qualité perçue (avril 2026)
+- **Date** : 2026-04-01
+- **Contexte** : Benchmark comparatif sur test_002 (52s, FR→EN) entre HeyGen (leader SaaS, plan gratuit), SILA MOSS-TTS v2, et SILA CosyVoice. Objectif : calibrer la qualité SILA par rapport au marché et identifier les axes d’amélioration.
+- **Protocole** : même vidéo source traitée par les 3 engines. Analyse automatisée (DNSMOS, loudness, spectral, speaker embedding, MFCC, F0) + écoute humaine.
+- **Résultats objectifs** :
+  - DNSMOS : MOSS v2 (3.16) > CosyVoice (2.93) > HeyGen (2.89) — SILA bat HeyGen en qualité signal
+  - Loudness : SILA -16.0 LUFS (conforme EBU R128) vs HeyGen -13.0 LUFS (hors norme, plus fort)
+  - True peak : CosyVoice (-1.9 dBTP) > MOSS (-1.0) > HeyGen (-0.3, quasi-clipping)
+  - Speech coverage : HeyGen (93.5%) > CosyVoice (75.7%) > MOSS (73.9%)
+  - Energy CoV : MOSS (16.7%) > CosyVoice (23.4%) > HeyGen (36.7%)
+  - Speaker similarity : CosyVoice (0.714) > MOSS = HeyGen (0.686)
+  - F0 moyen : HeyGen (105 Hz, plus proche du speaker source) > MOSS (132 Hz) > CosyVoice (143 Hz)
+  - LRA : HeyGen (16.7, dynamique naturelle) > CosyVoice (6.4) > MOSS (3.0, trop compressé)
+- **Écoute humaine** : HeyGen perçu comme plus agréable malgré des métriques audio inférieures. Pas de sauts, timbre uniforme, voix naturelle. SILA MOSS v2 : meilleur signal mais trous entre segments, voix trop plate, pitch décalé.
+- **Diagnostic — 3 axes d’amélioration identifiés** :
+  1. **Coverage gap** (73% → >90%) : le duration control fonctionne segment par segment, mais l’assembly laisse des trous. Problème d’assembly et crossfade, pas de TTS. Le fond sonore Demucs comble partiellement (98% coverage avec Demucs sur test_007 vs 73% sur test_002). Vérifier que Demucs était actif sur le run test_002.
+  2. **Dynamique écrasée** (LRA 3.0 → >8.0) : la normalisation loudnorm segment par segment écrase la dynamique naturelle. Solution : normaliser sur l’audio final mixé, pas segment par segment. Ou utiliser un loudnorm moins agressif (target -16 LUFS mais avec LRA min plus élevé).
+  3. **Pitch matching** (F0 132 Hz → plus proche du source) : MOSS-TTS produit un F0 plus haut que la voix source. Le voice reference peut être mieux sélectionné, ou un paramètre de pitch target peut être ajouté.
+- **Positionnement** : SILA bat HeyGen sur la qualité signal (DNSMOS), la conformité loudness, et le true peak. HeyGen bat SILA sur la coverage, la dynamique, et le pitch matching. Les 3 axes identifiés sont des ajustements de post-production et calibrage, pas des changements de modèle.
+- **Pricing HeyGen** : $2.25/min via API. 1h de vidéo = $135/langue. SILA = coût compute local uniquement. ROI positif après quelques dizaines de vidéos.
+- **Décision** : garder les 3 axes comme priorités V3.2. Refaire le benchmark HeyGen après corrections (2 crédits gratuits restants).
+- **Principe P18** : Qualité perçue ≠ qualité mesurée — les métriques sont des indicateurs, pas des verdicts. L’écoute humaine reste le juge final.
+
+---
+
+### ADR-018 : Serveur MOSS-TTS HTTP persistant et test_008 (avril 2026)
+- **Date** : 2026-04-01
+- **Contexte** : Optimisation performance MOSS-TTS. Le subprocess batch charge le modèle pour chaque batch (~15s overhead). Serveur HTTP persistant sur port 8082 élimine ce overhead.
+- **Résultats** :
+  - Serveur FastAPI MOSS-TTS sur port 8082, service systemd `moss-tts-server`
+  - Speedup : 1.68× (57.6s/seg → 34.3s/seg sur test_008)
+  - L’inférence MOSS elle-même reste ~15-30s/seg — le gain vient de l’élimination du model loading
+  - Qualité identique : QC 94%, DNSMOS 3.23
+  - Fallback : si serveur down, l’engine revient au subprocess automatiquement
+- **test_008** : extrait 5 min de test_007 (YouTube, minutes 05:00-10:00), 31 segments. Remplace test_002 comme test rapide représentatif du contenu cible.
+- **Ratio pipeline actuel** : ~3.5:1 (vs 6:1 avant serveur HTTP, vs 1:1 CosyVoice)
+- **Leviers d’optimisation restants** : GGUF quantisé (2-3× estimé), SGLang backend (2-3× estimé), MossTTSDelay 8B (inconnu)
 
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
