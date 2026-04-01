@@ -32,7 +32,8 @@ from src.pipeline.events import event_bus
 
 def _run_pipeline_thread(job_id: str, input_path: str, target_langs: str,
                          demucs: str, diarize: bool, glossary: str | None,
-                         rewrite_endpoint: str | None):
+                         rewrite_endpoint: str | None, tts_engine: str = "moss",
+                         multitrack: bool = False, captions: bool = False):
     """Run pipeline in a thread (shares memory with FastAPI for event bus)."""
     try:
         from src.pipeline.runner import run_pipeline
@@ -47,9 +48,12 @@ def _run_pipeline_thread(job_id: str, input_path: str, target_langs: str,
             target_langs=langs,
             data_dir=Path(PROJECTS_DIR),
             project_id=job_id,
+            tts_engine=tts_engine,
             demucs_enabled=(demucs == "on"),
             demucs_auto=(demucs == "auto"),
             rewrite_endpoint=rewrite_endpoint,
+            multitrack=multitrack,
+            captions=captions,
             job_id=job_id,
         )
     except Exception as e:
@@ -65,6 +69,9 @@ async def create_job(
     diarize: bool = False,
     glossary: str | None = None,
     rewrite_endpoint: str | None = None,
+    tts_engine: str = "moss",
+    multitrack: bool = False,
+    captions: bool = False,
     background_tasks: BackgroundTasks = None,
 ):
     """Upload a video and start the dubbing pipeline."""
@@ -78,7 +85,7 @@ async def create_job(
 
     thread = threading.Thread(
         target=_run_pipeline_thread,
-        args=(job_id, input_path, target_langs, demucs, diarize, glossary, rewrite_endpoint),
+        args=(job_id, input_path, target_langs, demucs, diarize, glossary, rewrite_endpoint, tts_engine, multitrack, captions),
         daemon=True,
     )
     thread.start()
