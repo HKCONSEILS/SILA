@@ -1,8 +1,8 @@
 # MASTERPLAN — Pipeline IA de Traduction & Doublage Vidéo Multilingue
 
 **Nom de code** : `SILA — Seamless International Language Automation`
-**Version du document** : 1.10.1
-**Date** : 2026-04-01
+**Version du document** : 1.11.0
+**Date** : 2026-04-02
 **Statut** : V3.1 — Benchmark HeyGen, serveur MOSS-TTS, test_008
 **Auteur** : Comité d'architecture (4 experts)
 **Licence projet** : À définir (self-hosted, usage interne ou commercial)
@@ -107,6 +107,7 @@ Construire un pipeline self-hosted, modulaire et industrialisable, capable de pr
 | P16 | **Budget en caractères** | Chaque segment porte un `max_chars` calculé depuis le `timing_budget_ms` et le débit naturel du TTS (~10 chars/s pour l'anglais, ~12 chars/s pour le français). La traduction et la réécriture doivent respecter ce budget. Formule : `max_chars = (timing_budget_ms / 1000) × debit_chars_s × 0.90` (marge 10%). |
 | P17 | **Profils TTS par engine** | Chaque moteur TTS a ses propres paramètres calibrés. Le runner adapte le flow via les propriétés de l'engine (`supports_duration_control`, `supports_speed_control`). Les paramètres CosyVoice ne s'appliquent pas à MOSS et vice versa. |
 | P18 | **Qualité perçue ≠ qualité mesurée** | Les métriques objectives (DNSMOS, loudness, energy CoV) ne corrèlent pas toujours avec la qualité perçue. La speech coverage, la dynamique (LRA), et le pitch matching ont un impact perceptif supérieur au DNSMOS. L'écoute humaine reste le juge final, les métriques sont des indicateurs, pas des verdicts. Corollaire : les mesures F0 (pitch) ne sont fiables que sur des stems vocaux isolés (Demucs), pas sur l'audio mixé. L'algorithme pyin est sujet à l'octave doubling — toujours croiser avec autocorrélation et plage contrainte. Outil : `bench/f0_analysis/measure_f0.py`. |
+| P19 | **Timing fit = durée audio** | Le timing fit se mesure sur la durée réelle du WAV TTS comparée au timing_budget_ms (±15%), pas sur le ratio chars/max_chars. Le duration control MOSS-TTS ajuste la prosodie pour respecter le budget audio même si le texte dépasse le max_chars. Le text_fit (chars vs max_chars) est une métrique secondaire informative. |
 
 ### 2.2 Séparations conceptuelles fondamentales
 
@@ -140,7 +141,8 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 | Extraction / remux | FFmpeg 6+ | LGPL 2.1 | 0 (CPU) | ✅ Verrouillé |
 | Séparation vocale | Demucs v4 (htdemucs_ft) | MIT | ~4 Go | ✅ Verrouillé — repo archivé, dépendance figée |
 | Transcription + alignment + diarisation | WhisperX (large-v3 + pyannote 3.1). Décomposition V2. Qwen3-ASR et Voxtral Mini Transcribe V2 à évaluer en V2. | BSD-4 | ~8 Go | ✅ Verrouillé |
-| Traduction | NLLB-200 3.3B via CTranslate2 | ⚠️ CC-BY-NC 4.0 (poids) + MIT (runtime) | ~3 Go (int8 CPU) | ✅ Verrouillé sous réserve licence |
+| Traduction + réécriture (fusion) | Magistral Small 24B UD-Q4_K_XL (Unsloth Dynamic 2.0) — traduction FR→EN directe avec contrainte de longueur en un seul appel LLM | Apache 2.0 | ~15 Go | ✅ Verrouillé V3.3 (défaut) |
+| Traduction (legacy) | NLLB-200 3.3B via CTranslate2 — activé par `--legacy-nllb` | ⚠️ CC-BY-NC 4.0 | ~3 Go (int8 CPU) | ⚠️ Déprécié (fallback) |
 | Traduction (alt. commerciale) | MADLAD-400 (Google) via CTranslate2 | Apache 2.0 | ~3 Go (int8 CPU) | 🔄 Si usage commercial |
 | Réécriture contrainte (V2) | Mistral Small 3.2 24B (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~15 Go | ✅ Retenu V2 |
 | Réécriture contrainte (fallback) | Ministral 3 8B Instruct (Unsloth Dynamic 2.0 Q4_K_M) | Apache 2.0 | ~5 Go | ✅ Retenu V2 |
@@ -150,6 +152,7 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 | TTS / voice cloning (challenger) | Voxtral TTS 4B (Mistral, mars 2026). 9 langues, clonage 2-3s, streaming ~100ms TTFA. ⚠️ Licence : poids open-weights mais voix de référence CC-BY-NC 4.0 (vérifier si usage avec voix propres lève la restriction). | Open-weights ⚠️ | ~8 Go | 🔄 À benchmarker |
 | Time-stretching | pyrubberband (wrapper librubberband) | MIT | 0 (CPU) | ✅ Verrouillé |
 | Normalisation loudness | FFmpeg loudnorm (EBU R128). pyloudnorm en V2. | — | 0 (CPU) | ✅ Verrouillé |
+| Voice enhancement | FFmpeg highpass 80 Hz + compressor 3:1 + loudnorm -16 LUFS | LGPL 2.1 | 0 (CPU) | ✅ Verrouillé V3.3 (défaut) |
 | Orchestration | Script séquentiel (V1), Celery + Redis (V2), Temporal (V3) | BSD/MIT | 0 (CPU) | ✅ Verrouillé |
 | Qualité audio estimée | UTMOS | — | ~1 Go | ✅ Retenu |
 | Base de données | Fichier JSON (V1), PostgreSQL 16 JSONB (V2+) | PostgreSQL Licence | 0 (CPU) | ✅ Verrouillé |
@@ -158,11 +161,11 @@ Malgré le découpage en segments, le pipeline doit maintenir du contexte à tro
 
 ### 3.2 Note licence NLLB-200
 
-Les poids NLLB-200 de Meta sont sous **CC-BY-NC 4.0** (non-commercial uniquement). CTranslate2 est MIT mais ça ne change pas la licence des poids.
+Depuis V3.3.0, NLLB-200 est **déprécié** en faveur de Magistral fusion (Apache 2.0). Le pipeline par défaut n'utilise plus NLLB. Le codepath NLLB est préservé via `--legacy-nllb` pour rollback.
 
-- **Usage interne / non-commercial** → NLLB-200 3.3B. Meilleur choix technique.
-- **Usage commercial** → **MADLAD-400** (Google, Apache 2.0, 450+ langues). Performances légèrement inférieures sur les langues à basse ressource.
-- **Action** : faire valider par un juriste avant la mise en production commerciale.
+- **Défaut V3.3+** → Magistral Small 24B fusion (Apache 2.0). Traduction + réécriture en un seul appel.
+- **Fallback** → NLLB-200 3.3B via `--legacy-nllb`. ⚠️ CC-BY-NC 4.0.
+- **Usage commercial** → Le pipeline par défaut est entièrement Apache 2.0. Pas de restriction licence.
 
 ### 3.3 Détail des briques TTS
 
@@ -1193,6 +1196,22 @@ Avant l'export final, vérifier que 100% des segments ont un statut `completed` 
 
 Note : le QC timing bimodal (35.8% excellent 0-5%, 34.7% hors budget 50-100%) est la signature du non-déterminisme CosyVoice (ADR-011).
 
+### 13.6 Baseline mesurée — YouTube 62 min (v3.3.0)
+
+| Métrique | Valeur |
+|---|---|
+| Config | Magistral fusion, marge 0.85, voice enhancement ON |
+| Segments | 368 |
+| TTS complétés | 368/368 (100%) |
+| QC timing audio ±15% | 98.4% (362/368) |
+| QC timing texte | 70% (256/368) — métrique secondaire (P19) |
+| Audit (sans enhancement) | 6P+2W (CoV 33.4%) |
+| Audit (avec enhancement) | 8/8 PASS (CoV 24.6%) |
+| Coverage (avec enhancement) | 99.5% |
+| Segments rewrittés | 152/368 (41%) |
+| Temps pipeline | 9698s (2h42m), ratio 2.6:1 |
+| Amélioration vs v3.0.0-alpha | QC 48.5% → 98.4%, ratio 1:1 → 2.6:1, coverage 62.4% → 99.5% |
+
 ### 13.4 Quality gates
 
 | Gate | Condition de passage | Conséquence si échec |
@@ -1669,5 +1688,35 @@ Accès : `http://192.168.1.228:8000/`
   - test_009 : source **145 Hz** (pas 243 Hz), MOSS ~159 Hz (+1.6 dt), HeyGen ~142 Hz (-0.4 dt)
 - **Principe retenu** : ne jamais mesurer le F0 sur l’audio mixé. Toujours séparer la voix (Demucs) avant mesure. Croiser pyin avec autocorrélation. Documenter les raw measurements pour audit.
 
+
+
+### ADR-020 : Magistral fusion remplace NLLB+rewrite par défaut (avril 2026)
+- **Date** : 2026-04-02
+- **Contexte** : Le pipeline utilisait NLLB-200 3.3B (CC-BY-NC 4.0) pour la traduction, puis un LLM local (Ministral 3B, puis Magistral Small 24B) pour la réécriture contrainte en longueur. Deux problèmes : la licence CC-BY-NC de NLLB interdit l'usage commercial, et le pipeline en deux étapes (traduire puis réécrire) produit des textes moins naturels qu'une traduction directe.
+- **Solution** : Magistral Small 24B UD-Q4_K_XL (Apache 2.0) reçoit le texte FR source et produit directement le texte EN oral contraint en longueur, en un seul appel LLM (fusion traduction+réécriture).
+- **Résultats sur test_008** (5 min, 31 segments) : Timing fit audio 100%, audit 8/8 PASS, CoV énergie 9.9%. Seulement 10/31 segments rewrittés (vs 17-18 avec NLLB+rewrite). Marge de caractères optimale : 0.85 (testée à 0.90, 0.85, 0.80, 0.75).
+- **Résultats sur test_007** (62 min, 368 segments) : Timing fit audio 98.4% (362/368), delta moyen +0.3%, P90 +1.4%. Avec voice enhancement : audit 8/8 PASS, coverage 99.5%. Pipeline ratio 2.6:1 (vs 3.5:1 avec NLLB+Magistral séparé). 152/368 segments rewrittés (41%).
+- **Décision** : fusion activée par défaut. NLLB préservé via `--legacy-nllb`. Marge de caractères par défaut : 0.85.
+- **Impact licence** : pipeline entièrement Apache 2.0 par défaut (NLLB CC-BY-NC retiré du chemin critique).
+
+### ADR-021 : Voice enhancement intégré au pipeline (avril 2026)
+- **Date** : 2026-04-02
+- **Contexte** : Les audits QC sur test_007 montraient des WARN sur energy CoV (33.4%) et gaps. Le diagnostic HeyGen (ADR-017) avait identifié la dynamique écrasée comme axe d'amélioration.
+- **Solution** : chaîne FFmpeg post-TTS intégrée avant le loudnorm final : highpass 80 Hz (coupe rumbles) + compressor ratio 3:1 (réduit dynamique excessive) + loudnorm -16 LUFS EBU R128.
+- **Résultats sur test_007** : Sans enhancement : 6P+2W, CoV 33.4%. Avec enhancement : 8/8 PASS, CoV 24.6%. Sur test_008 fusion m0.85 : CoV passe de 9.9% à 0.3%.
+- **Décision** : enhancement activé par défaut dans le pipeline (Phase 9 Assembly).
+- **Note** : le compressor 3:1 améliore la cohérence inter-segments mais compresse davantage la dynamique. La dynamique naturelle (LRA) reste un axe ouvert pour V3.4+.
+
+### ADR-022 : MOSS-TTS Delay 8B — bloqué, backlog V3.4+ (avril 2026)
+- **Date** : 2026-04-02
+- **Contexte** : MossTTSDelay 8B (OpenMOSS) est le modèle "grand frère" de MossTTSLocal 1.7B. Timbre potentiellement meilleur, même architecture de duration control. Téléchargé avec succès (16 GB, GPU 0 RTX 4090).
+- **Blocage** : CUDA device-side assert sur 100% des segments (6/6 sur test_009). Cause probable : incompatibilité processor (architecture Delay vs Local, pas le même tokenizer/config) + possible problème avec la voice ref 48 kHz. Le modèle se charge mais crash à l'inférence.
+- **Décision** : backlog V3.4+. Attendre documentation OpenMOSS sur l'architecture Delay avant d'investir du temps. MossTTSLocal 1.7B fait le job (98.4% timing fit sur 62 min).
+
+### ADR-023 : Timing fit — métrique audio, pas textuelle (avril 2026)
+- **Date** : 2026-04-02
+- **Contexte** : Le sprint test_007 fusion a rapporté un timing fit de 70% (256/368). Investigation : ce chiffre mesurait le ratio chars/max_chars dans translations_en.json (timing fit textuel). La mesure correcte est la durée réelle du WAV TTS vs timing_budget_ms (timing fit audio).
+- **Résultat** : timing fit audio réel = 98.4% (362/368). L'écart s'explique par le duration control MOSS-TTS : même avec un texte "trop long" (plus de caractères que max_chars), le modèle ajuste la prosodie (débit, pauses) pour produire un audio qui rentre dans le budget de durée.
+- **Décision** : tous les rapports QC utilisent audio_fit comme critère de timing. text_fit est loggé mais n'est pas un critère PASS/FAIL. Nouveau principe P19 ajouté.
 
 *Fin du masterplan. Ce document est versionné et fait autorité sur toutes les décisions du projet.*
