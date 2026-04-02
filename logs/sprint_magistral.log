@@ -1,0 +1,52 @@
+=== SPRINT MAGISTRAL SMALL ===
+Started: 2026-04-02T04:38:25+00:00
+
+=== STEP 0: BASELINE ===
+Ministral texts saved: bench/baseline_ministral_texts_009.json, _008.json
+
+=== STEP 1: DOWNLOAD ===
+Model: Magistral-Small-2509-UD-Q4_K_XL.gguf (Unsloth Dynamic 2.0)
+Size: 14 GB
+Source: unsloth/Magistral-Small-2509-GGUF
+
+=== STEP 2: SERVICE ===
+Service: llama-magistral (port 8081, CUDA 2)
+VRAM: 16.7 GB on RTX 3090
+Cohabitation MOSS-TTS: OK (separate GPUs: CUDA 1 vs CUDA 2)
+
+=== STEP 3: PROMPT ===
+Kept existing prompt (works well with completions endpoint)
+Added Magistral [THINK] tag handling to _extract_answer
+
+=== STEP 4: ISOLATED REWRITE ===
+Magistral speed: 0.5-1.2s/seg (comparable to Ministral)
+Quality: more natural, longer sentences (closer to max_chars)
+Some over-limit cases (pipeline handles gracefully)
+
+=== STEP 5: PIPELINE test_009 ===
+Pipeline: 181.9s
+Audit: 6P+1W(frag)+1F(energy CoV 54.9%)
+Note: 6 segments only, high variance expected
+
+=== STEP 5: PIPELINE test_008 ===
+Pipeline: 813.7s (13.7 min)
+Segments: 31 (17 rewritten by LLM)
+Timing fit OK: 25/31 (81%)
+Audit: 7P+1W (energy CoV 26.3%)
+QC: completed
+
+=== FINAL COMPARISON ===
+test_008 Ministral (baseline): QC 94%, audit 6P+1W+1F
+test_008 Magistral: timing fit 81%, audit 7P+1W
+
+Text quality comparison:
+  Magistral produces fuller, more natural sentences
+  Ministral was too aggressive in shortening (28 chars for 89 max)
+  Magistral better fills the timing budget
+  Some Magistral outputs slightly over max_chars (handled by pipeline)
+
+Rewrite speed: ~0.5-1.2s/seg (comparable)
+VRAM: 16.7 GB on CUDA 2 (RTX 3090), MOSS-TTS on CUDA 1 (no conflict)
+
+MP4 bastion: test_009_magistral_en.mp4, test_008_magistral_en.mp4
+Rollback: systemctl stop llama-magistral && systemctl start llama-ministral

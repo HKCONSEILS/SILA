@@ -1,0 +1,62 @@
+=== ÉTAT DES LIEUX LXC 228 ===
+Date: Thu Apr  2 05:52:14 UTC 2026
+
+GPUs visibles (4 GPUs passthrough depuis Proxmox) :
+  nvidia-smi GPU 0 (41:00.0) = RTX 4090 24 Go — LIBRE (0 MB used)
+  nvidia-smi GPU 1 (42:00.0) = RTX 3090 24 Go — Magistral (15.6 GB)
+  nvidia-smi GPU 2 (81:00.0) = RTX 4090 24 Go — MOSS-TTS (13.9 GB)
+  nvidia-smi GPU 3 (C1:00.0) = RTX 3090 24 Go — AUTRE LXC (21.2 GB, NE PAS TOUCHER)
+
+CUDA device mapping (dans le LXC, via torch) :
+  CUDA 0 = RTX 4090 (nvidia GPU 0) — 24.9/25.3 GB libre
+  CUDA 1 = RTX 4090 (nvidia GPU 2) — 10.2/25.3 GB libre (MOSS-TTS)
+  CUDA 2 = RTX 3090 (nvidia GPU 1) — 8.6/25.3 GB libre (Magistral)
+  CUDA 3 = RTX 3090 (nvidia GPU 3) — 2.8/25.3 GB libre (NE PAS TOUCHER)
+
+Note: CUDA indices != nvidia-smi indices! Le mapping est :
+  CUDA 0 -> nvidia-smi 0 (RTX 4090)
+  CUDA 1 -> nvidia-smi 2 (RTX 4090) via bus 81:00.0
+  CUDA 2 -> nvidia-smi 1 (RTX 3090) via bus 42:00.0
+  CUDA 3 -> nvidia-smi 3 (RTX 3090) via bus C1:00.0
+
+Services actifs :
+  Port 8000 : sila-api (uvicorn, CUDA_VISIBLE_DEVICES=1, PID 45206) — OK
+  Port 8081 : llama-magistral (Magistral Small 24B UD-Q4_K_XL, CUDA 2, 15.6 GB, PID 117914) — OK
+  Port 8082 : moss-tts-server (MossTTSLocal 1.7B + GPU audio decode, CUDA 1, 13.9 GB, PID 99553) — OK
+
+Services désactivés :
+  llama-ministral : disabled (Ministral 3 8B, remplacé par Magistral)
+  moss-tts-gguf : disabled (GGUF server, QC trop bas)
+
+Disque : 145 GB utilisé, 138 GB libre (295 GB total)
+
+Modèles sur disque :
+  magistral-small (UD-Q4_K_XL) : 14 GB
+  ministral-8b-q4km : 4.9 GB (conservé pour rollback)
+  huggingface (cache) : 20 GB
+  cosyvoice3-0.5b : 9.1 GB
+  voxtral-tts-4b : 7.5 GB
+  nllb-200-3.3b-ct2 : 3.2 GB
+
+=== TUNING RESULTS ===
+
+Margin experiment:
+  v1 (margin 0.90): timing fit 25/31 (81%), audit 7P+1W
+  v2 (margin 0.82): timing fit 19/31 (61%), audit 7P+1W
+  VERDICT: margin 0.82 is WORSE — Magistral generates longer text
+  even with shorter targets. REVERTED to 0.90.
+
+Prompt experiment:
+  Old: "Shorten for voice dubbing (X-Y chars). Only output the text."
+  New: "Rewrite for voice dubbing. Use spoken English with contractions.
+        Target X-Y chars MAXIMUM. Only output the rewritten text."
+  VERDICT: New prompt produces more natural spoken English with contractions.
+  Kept new prompt with margin 0.90.
+
+Final config:
+  Margin: 0.90 (unchanged from original)
+  Prompt: updated (contractions, spoken style)
+  Think tags: [THINK] handling added (safety net, not triggered in completions mode)
+
+test_009 v2: 7P+1W (improved from v1 6P+1W+1F)
+test_008 v2: 7P+1W (same as v1)

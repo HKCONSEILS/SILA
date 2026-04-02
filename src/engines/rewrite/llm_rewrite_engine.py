@@ -1,6 +1,6 @@
 """LLM rewrite engine — Phase 7 (reecriture contrainte qualite-first).
 
-Utilise Qwen3.5-27B sur LXC 225 via API completions.
+Utilise Magistral Small 24B (ou Qwen3.5-27B) via API completions.
 Strategie : 2 tentatives avec max_tokens croissant. Si le modele
 pense trop, on strip <think>...</think> et on extrait la reponse.
 """
@@ -17,10 +17,13 @@ from src.engines.rewrite.interface import RewriterInterface, RewriteResult
 
 logger = logging.getLogger(__name__)
 
-# Fast prompt — bypasses Qwen3.5 thinking mode by being concise
+# Concise prompt for constrained rewrite (Magistral Small / Qwen3.5)
+# Uses contractions and spoken style for natural TTS output.
 PROMPT_TEMPLATE = (
-    "Shorten for voice dubbing ({min_chars}-{max_chars} chars). Only output the text.\n\n"
-    "{text}\n\nShort:"
+    "Rewrite for voice dubbing. Use spoken English with contractions "
+    "(don\'t, it\'s, we\'re). Target {min_chars}-{max_chars} chars MAXIMUM. "
+    "Only output the rewritten text.\n\n"
+    "{text}\n\nRewritten:"
 )
 
 LANG_NAMES = {
@@ -58,12 +61,20 @@ class LLMRewriteEngine(RewriterInterface):
         return self._client
 
     def _extract_answer(self, raw: str) -> str:
-        """Extract the actual answer, stripping Qwen3.5 thinking."""
+        """Extract the actual answer, stripping LLM thinking tags (Qwen3.5/Magistral)."""
+        # Qwen3.5 thinking tags
         if "</think>" in raw:
             return raw.split("</think>")[-1].strip()
         if "<think>" in raw:
-            # Thinking started but never finished — discard all
             before = raw.split("<think>")[0].strip()
+            if before:
+                return before
+            return ""
+        # Magistral thinking tags
+        if "[/THINK]" in raw:
+            return raw.split("[/THINK]")[-1].strip()
+        if "[THINK]" in raw:
+            before = raw.split("[THINK]")[0].strip()
             if before:
                 return before
             return ""
@@ -79,7 +90,7 @@ class LLMRewriteEngine(RewriterInterface):
                 "prompt": prompt,
                 "temperature": 0.3,
                 "max_tokens": max_tokens,
-                "stop": ["Original:", "\n\nOriginal", "\n\n", "\nShort:"],
+                "stop": ["Original:", "\n\nOriginal", "\n\n", "\nRewritten:", "\nShort:"],
             },
         )
         response.raise_for_status()

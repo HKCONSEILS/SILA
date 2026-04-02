@@ -88,6 +88,8 @@ def _setup_logging(verbose: bool) -> None:
     help="Export separate audio tracks (voice, background, mix).")
 @click.option("--captions", is_flag=True, default=False,
     help="Embed SRT subtitles into output MP4 (soft captions, mov_text).")
+@click.option("--legacy-nllb", is_flag=True, default=False,
+    help="Use NLLB+rewrite instead of Magistral fusion (legacy codepath).")
 @click.option(
     "--tts-engine",
     default="cosyvoice",
@@ -114,6 +116,7 @@ def cli(
     force_reprocess: bool,
     multitrack: bool,
     captions: bool,
+    legacy_nllb: bool,
 ) -> None:
     """SILA — Pipeline de traduction et doublage video multilingue."""
     _setup_logging(verbose)
@@ -146,6 +149,10 @@ def cli(
             console.print("  Captions: ENABLED (SRT embedded)")
         if rewrite_endpoint:
             console.print(f"  Rewrite endpoint: {rewrite_endpoint}")
+        if legacy_nllb:
+            console.print("  Translation: NLLB legacy mode")
+        else:
+            console.print("  Translation: Magistral fusion (default)")
         if glossary:
             console.print(f"  Glossary: {glossary}")
         manifest = run_pipeline(
@@ -166,6 +173,7 @@ def cli(
             force_reprocess=force_reprocess,
             multitrack=multitrack,
             captions=captions,
+            translate_rewrite_fusion=not legacy_nllb,
         )
         project_id = manifest["project"]["project_id"]
         console.print(f"\n[bold green]Done[/bold green] — Project: {project_id}")
