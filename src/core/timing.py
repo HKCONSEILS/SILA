@@ -26,16 +26,16 @@ NATURAL_SPEECH_RATES = {
 }
 
 
-def calc_max_chars(budget_ms: int, lang: str, margin: float = 0.90) -> int:
+def calc_max_chars(budget_ms: int, lang: str, margin: float = 0.85) -> int:
     """Calcule le nombre max de caracteres pour un budget donne.
 
     Formule : max_chars = (budget_ms / 1000) * debit_naturel * margin
-    La marge de 0.90 laisse 10% pour le stretch fin.
+    La marge de 0.85 laisse 15% pour TTS duration control + stretch.
 
     Args:
         budget_ms: Budget temporel en ms.
         lang: Code ISO 639-1 de la langue cible.
-        margin: Marge de securite (0.90 = 90% du budget).
+        margin: Marge de securite (0.85 = 85% du budget).
 
     Returns:
         Nombre max de caracteres.
