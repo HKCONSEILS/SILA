@@ -26,7 +26,7 @@ from src.core.manifest import (
 from src.core.models import Segment, StageStatus
 from src.core.segment import build_segments_from_words
 from src.core.timing import compute_stretch_ratio, calc_max_chars, classify_timing_fit_text, MAX_SPEED_RATIO, MIN_SLOWDOWN_RATIO
-from src.media.ffmpeg import extract_audio, loudnorm, probe_video, remux, remux_with_captions
+from src.media.ffmpeg import extract_audio, loudnorm, voice_enhance, probe_video, remux, remux_with_captions
 from src.media.srt import generate_srt
 
 logger = logging.getLogger(__name__)
@@ -983,8 +983,10 @@ def run_assembly(manifest: dict, manifest_path: Path, target_lang: str, demucs_e
             background_audio_path=background_audio_path,
         )
 
-        # Loudnorm
-        loudnorm(mix_raw, mix_norm, target_lufs=-16.0)
+        # Voice enhancement + Loudnorm
+        mix_enhanced = mix_raw.with_name("mix_%s_enhanced.wav" % target_lang)
+        voice_enhance(mix_raw, mix_enhanced)
+        loudnorm(mix_enhanced, mix_norm, target_lufs=-16.0)
 
         update_stage(manifest, stage_key, StageStatus.COMPLETED)
     except Exception as exc:

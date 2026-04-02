@@ -24,3 +24,9 @@ Key insight: fusion slightly BETTER than NLLB+Magistral on timing fit
 NLLB eliminated — pure Apache 2.0 pipeline.
 
 MP4 bastion: test_009_fusion_en.mp4, test_008_fusion_en.mp4
+=== PHASE 2 BLOCAGE ===
+MOSS Delay 8B sampling: BLOCKED
+Error: CUDA device-side assert on all 6 segments
+Cause probable: voice ref 48kHz incompatible + Delay arch \!= Local arch
+Model loaded OK: 21.7s, VRAM 16.98 GB on GPU 0 (RTX 4090)
+Documented. Moving on.

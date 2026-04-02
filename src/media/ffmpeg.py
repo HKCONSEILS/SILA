@@ -136,6 +136,27 @@ def extract_audio(
     return output_path
 
 
+
+
+def voice_enhance(
+    input_path: Path,
+    output_path: Path,
+) -> Path:
+    """Apply voice enhancement: highpass 80Hz + compressor 3:1.
+
+    Improves energy consistency and removes low-frequency rumble.
+    Applied before loudnorm in the assembly chain.
+    """
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg", "-y", "-hide_banner", "-loglevel", "error",
+        "-i", str(input_path),
+        "-af", "highpass=f=80,acompressor=threshold=-20dB:ratio=3:attack=5:release=50:makeup=2dB",
+        str(output_path),
+    ]
+    subprocess.run(cmd, check=True, capture_output=True)
+    return output_path
+
 def loudnorm(
     input_path: Path,
     output_path: Path,
