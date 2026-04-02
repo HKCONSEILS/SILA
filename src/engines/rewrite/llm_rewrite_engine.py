@@ -1,6 +1,6 @@
 """LLM rewrite engine — Phase 7 (reecriture contrainte qualite-first).
 
-Utilise Qwen3.5-27B sur LXC 225 via API completions.
+Utilise Magistral Small 24B (ou Qwen3.5-27B) via API completions.
 Strategie : 2 tentatives avec max_tokens croissant. Si le modele
 pense trop, on strip <think>...</think> et on extrait la reponse.
 """
@@ -58,12 +58,20 @@ class LLMRewriteEngine(RewriterInterface):
         return self._client
 
     def _extract_answer(self, raw: str) -> str:
-        """Extract the actual answer, stripping Qwen3.5 thinking."""
+        """Extract the actual answer, stripping LLM thinking tags (Qwen3.5/Magistral)."""
+        # Qwen3.5 thinking tags
         if "</think>" in raw:
             return raw.split("</think>")[-1].strip()
         if "<think>" in raw:
-            # Thinking started but never finished — discard all
             before = raw.split("<think>")[0].strip()
+            if before:
+                return before
+            return ""
+        # Magistral thinking tags
+        if "[/THINK]" in raw:
+            return raw.split("[/THINK]")[-1].strip()
+        if "[THINK]" in raw:
+            before = raw.split("[THINK]")[0].strip()
             if before:
                 return before
             return ""
