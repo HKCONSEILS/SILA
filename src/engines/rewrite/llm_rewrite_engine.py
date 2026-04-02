@@ -17,10 +17,13 @@ from src.engines.rewrite.interface import RewriterInterface, RewriteResult
 
 logger = logging.getLogger(__name__)
 
-# Fast prompt — bypasses Qwen3.5 thinking mode by being concise
+# Concise prompt for constrained rewrite (Magistral Small / Qwen3.5)
+# Uses contractions and spoken style for natural TTS output.
 PROMPT_TEMPLATE = (
-    "Shorten for voice dubbing ({min_chars}-{max_chars} chars). Only output the text.\n\n"
-    "{text}\n\nShort:"
+    "Rewrite for voice dubbing. Use spoken English with contractions "
+    "(don\'t, it\'s, we\'re). Target {min_chars}-{max_chars} chars MAXIMUM. "
+    "Only output the rewritten text.\n\n"
+    "{text}\n\nRewritten:"
 )
 
 LANG_NAMES = {
@@ -87,7 +90,7 @@ class LLMRewriteEngine(RewriterInterface):
                 "prompt": prompt,
                 "temperature": 0.3,
                 "max_tokens": max_tokens,
-                "stop": ["Original:", "\n\nOriginal", "\n\n", "\nShort:"],
+                "stop": ["Original:", "\n\nOriginal", "\n\n", "\nRewritten:", "\nShort:"],
             },
         )
         response.raise_for_status()
