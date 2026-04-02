@@ -1,0 +1,26 @@
+=== MAGISTRAL FUSION SPRINT ===
+Started: Thu Apr  2 06:36:30 UTC 2026
+
+=== FUSION RESULTS ===
+
+test_009 fusion:
+  Pipeline: 161.7s (vs 181.9s NLLB+Magistral — 11% faster)
+  Audit: 6P+2W
+  Timing fit: 4/6 (67%)
+
+test_008 fusion:
+  Pipeline: 816.4s
+  Audit: 7P+1W
+  Timing fit: 24/31 (77%)
+  Rewritten: 10/31 (vs 17/31 NLLB+Magistral)
+
+Comparison (test_008):
+  NLLB+Ministral:  31/31 fit (100%), 18 rewritten, 7P+1W
+  NLLB+Magistral:  23/31 fit (74%),  17 rewritten, 7P+1W
+  Magistral fusion: 24/31 fit (77%), 10 rewritten, 7P+1W
+
+Key insight: fusion slightly BETTER than NLLB+Magistral on timing fit
+(77% vs 74%), with fewer rewrites needed (10 vs 17). Same audio quality.
+NLLB eliminated — pure Apache 2.0 pipeline.
+
+MP4 bastion: test_009_fusion_en.mp4, test_008_fusion_en.mp4

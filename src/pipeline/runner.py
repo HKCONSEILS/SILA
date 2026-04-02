@@ -315,7 +315,7 @@ def run_segmentation(manifest: dict, manifest_path: Path) -> dict:
 # =========================================================================
 
 
-def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None, force_reprocess: bool = False) -> dict:
+def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossary: dict | None = None, force_reprocess: bool = False, fusion_endpoint: str | None = None) -> dict:
     """Phase 6 : Translate segments via NLLB-200. V2: optional glossary post-processing."""
     from src.engines.mt.nllb_engine import NLLBEngine
 
@@ -338,6 +338,71 @@ def run_translate(manifest: dict, manifest_path: Path, target_lang: str, glossar
 
     models_dir = os.environ.get("SILA_MODELS_DIR", "/opt/sila/models")
     model_path = Path(models_dir) / "nllb-200-3.3b-ct2"
+    segments = manifest["segments"]
+
+    if fusion_endpoint:
+        # Magistral fusion: translate FR→EN via LLM (skip NLLB)
+        import httpx
+        client = httpx.Client(base_url=fusion_endpoint, timeout=30.0)
+        try:
+            translations = []
+            for i, seg in enumerate(segments):
+                text = seg["source_text"]
+                budget_ms = seg["timing_budget_ms"]
+                max_chars = calc_max_chars(budget_ms, target_lang)
+
+                prompt = (
+                    "Translate French to concise spoken English for video dubbing "
+                    "(max %d chars). Use contractions. Only output the translation.\n\n"
+                    "%s\n\nEnglish:" % (max_chars, text)
+                )
+
+                try:
+                    resp = client.post("/v1/completions", json={
+                        "model": "magistral-small",
+                        "prompt": prompt,
+                        "max_tokens": 150,
+                        "temperature": 0.3,
+                        "stop": ["\n\n", "\nFrench:", "\nEnglish:"],
+                    })
+                    resp.raise_for_status()
+                    translated = resp.json()["choices"][0]["text"].strip().strip('"')
+                    # Clean thinking tags
+                    import re
+                    translated = re.sub(r'\[THINK\].*?\[/THINK\]', '', translated, flags=re.DOTALL).strip()
+                    translated = re.sub(r'<think>.*?</think>', '', translated, flags=re.DOTALL).strip()
+                except Exception as exc:
+                    logger.warning("Magistral translate failed for %s: %s — using source text", seg["segment_id"], exc)
+                    translated = text
+
+                glossary_hits = []
+                if glossary:
+                    from src.core.glossary import apply_glossary_post_translation
+                    translated, glossary_hits = apply_glossary_post_translation(translated, text, glossary, target_lang)
+
+                translations.append({
+                    "segment_id": seg["segment_id"],
+                    "source_text": text,
+                    "translated_text": translated,
+                    "glossary_hits": glossary_hits if glossary_hits else None,
+                    "start_ms": seg["start_ms"],
+                    "end_ms": seg["end_ms"],
+                    "timing_budget_ms": seg["timing_budget_ms"],
+                    "estimated_chars": len(translated),
+                    "translation_method": "magistral_fusion",
+                })
+                if (i + 1) % 10 == 0:
+                    logger.info("Translated %d/%d segments (Magistral)", i + 1, len(segments))
+        finally:
+            client.close()
+
+        with open(translations_path, "w") as f:
+            json.dump(translations, f, indent=2, ensure_ascii=False)
+        manifest[f"_translations_{target_lang}"] = translations
+        update_stage(manifest, stage_key, StageStatus.COMPLETED, segments_count=len(translations))
+        save_manifest(manifest, manifest_path)
+        logger.info("Phase 6 (Translate Magistral) done: %d segments -> %s", len(translations), target_lang)
+        return manifest
 
     try:
         engine = NLLBEngine(model_dir=model_path)
@@ -1104,6 +1169,7 @@ def run_pipeline(
     captions: bool = False,
     job_id: str | None = None,
     target_langs: list[str] | None = None,
+    translate_rewrite_fusion: bool = False,
 ) -> dict:
     """Execute le pipeline V1 complet (sequentiel).
 
@@ -1215,9 +1281,9 @@ def run_pipeline(
 
         # Phase 6 : Translation
         _event_bus.phase_started(_job_id, "translation", lang=lang)
-        logger.info("PHASE 6 — TRANSLATION (NLLB-200) [%s]", lang)
+        logger.info("PHASE 6 — TRANSLATION%s [%s]", " (Magistral fusion)" if translate_rewrite_fusion else " (NLLB-200)", lang)
         t_mt = time.time()
-        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary, force_reprocess=force_reprocess)
+        manifest = run_translate(manifest, manifest_path, lang, glossary=_glossary, force_reprocess=force_reprocess, fusion_endpoint=rewrite_endpoint if translate_rewrite_fusion else None)
         logger.info("Translation [%s] took %.1fs", lang, time.time() - t_mt)
         _event_bus.phase_completed(_job_id, "translation", lang=lang)
         _metrics.record("translate", "end", lang=lang, duration_s=round(time.time() - t_mt, 1))
