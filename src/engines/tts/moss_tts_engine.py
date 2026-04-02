@@ -163,7 +163,7 @@ class MossTTSEngine(TTSInterface):
 
         r = requests.post(
             f"{self._server_url}/synthesize",
-            json=payload, timeout=120,
+            json=payload, timeout=300,
         )
         r.raise_for_status()
         result = r.json()
@@ -361,7 +361,14 @@ class MossTTSEngine(TTSInterface):
             try:
                 return self._synthesize_http(text, output_path, timing_budget_ms)
             except Exception as exc:
-                logger.warning("HTTP synthesis failed (%s), falling back to subprocess", exc)
+                logger.warning("HTTP synthesis failed (%s), retrying once before fallback", exc)
+                try:
+                    self._http_available = self._check_server()
+                    if self._http_available:
+                        return self._synthesize_http(text, output_path, timing_budget_ms)
+                except Exception:
+                    pass
+                logger.warning("HTTP retry also failed, using subprocess")
                 self._http_available = False
 
         return self._synthesize_subprocess(text, output_path, timing_budget_ms)
@@ -372,7 +379,14 @@ class MossTTSEngine(TTSInterface):
             try:
                 return self._synthesize_batch_http(segments_data, output_dir)
             except Exception as exc:
-                logger.warning("HTTP batch failed (%s), falling back to subprocess", exc)
+                logger.warning("HTTP batch failed (%s), retrying once before fallback", exc)
+                try:
+                    self._http_available = self._check_server()
+                    if self._http_available:
+                        return self._synthesize_batch_http(segments_data, output_dir)
+                except Exception:
+                    pass
+                logger.warning("HTTP batch retry also failed, using subprocess")
                 self._http_available = False
 
         return self._synthesize_batch_subprocess(segments_data, output_dir)

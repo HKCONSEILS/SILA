@@ -1,0 +1,52 @@
+=== SERVEUR PYTORCH RESTAURÉ ===
+Date: Wed Apr  1 21:34:44 UTC 2026
+Service: moss-tts-server (port 8082)
+Modèle: MossTTSLocal 1.7B
+Health: {"status":"ok","model":"MossTTSLocal-1.7B","vram_gb":6.15}
+Smoke test: 2080ms audio in 6.7s (tokens=25)
+GGUF server: stopped and disabled
+
+=== PROFILING RESULTS ===
+Date: Wed Apr  1 21:43:57 UTC 2026
+
+Text length tests (with max_new_tokens=4096):
+  Short  (tokens=25):  generate=4.6s, decode=10.6s, total=15.2s
+  Medium (tokens=62):  generate=11.3s, decode=10.2s, total=21.4s
+  Long   (tokens=100): generate=18.6s, decode=1.9s,  total=20.5s
+  Max    (tokens=130): generate=24.0s, decode=9.8s,  total=33.8s
+
+max_new_tokens impact: NONE (model hits EOS before max)
+torch.compile: NO speedup (1.00x)
+flash_attn: not installed (flash_sdp already enabled via PyTorch)
+float16 vs bfloat16: no difference
+
+KEY INSIGHT: decode() takes 1.9-10.6s -- highly variable!
+  This is the audio codec (waveform synthesis from tokens)
+  Combined with generate(), these two account for 99%+ of time.
+  Prep and save are negligible.
+
+=== OPTIMIZATION: GPU Audio Tokenizer ===
+Date: Wed Apr  1 21:51:34 UTC 2026
+Change: processor.audio_tokenizer.to("cuda")
+VRAM: 6.12 Go -> 13.36 Go (+7.24 Go for audio codec)
+Decode time: 8-16s -> 0.07s (~150x faster)
+Total per segment: 31.7s -> ~11.5s (~2.8x faster)
+
+=== FULL PIPELINE BENCHMARK (test_008) ===
+Date: Wed Apr  1 22:13:37 UTC 2026
+Pipeline total: 823.7s (13.9 min)
+QC: 94% pass rate (meets >= 94% requirement)
+Audio audit: 6 PASS, 1 WARN (true peak), 1 FAIL (energy consistency)
+
+TTS metrics (31 segments, with voice reference):
+  Mean: 20.4s/seg (baseline: 31.7s)
+  P50: 23.4s, P90: 24.2s
+  Total: 694s (baseline: 984s)
+  Speedup: 1.6x
+
+Estimated ratio 1h video: ~2.5:1 (was 3.5:1)
+
+Key optimization: audio_tokenizer.to(cuda) 
+  CPU decode: 8-16s/seg -> GPU decode: 0.07s/seg
+  Total VRAM: 6.12 Go -> 13.36 Go
+  Still fits in RTX 4090 24 Go with Ministral 5 Go
